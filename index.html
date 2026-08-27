@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-bs-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>مدير المصاريف</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3c72">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="مصاريفي">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+    <style>
+      body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-bottom: 80px; transition: background-color 0.3s; }
+      .balance-card { border: none; border-radius: 15px; color: white; transition: transform 0.2s; }
+      .balance-card:active { transform: scale(0.98); }
+      .bg-bank { background: linear-gradient(45deg, #1e3c72, #2a5298); }
+      .bg-cash { background: linear-gradient(45deg, #11998e, #38ef7d); }
+      .bg-debt { background: linear-gradient(45deg, #cb2d3e, #ef473a); }
+      .form-card { border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: background-color 0.3s, color 0.3s; }
+      .nav-pills .nav-link.active { background-color: #343a40; }
+      .nav-pills .nav-link { color: #555; font-weight: bold; }
+      .installment-item { border-right: 4px solid #cb2d3e; background: var(--bs-body-bg); margin-bottom: 10px; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+      .list-group-item { cursor: pointer; transition: background 0.2s; }
+      .list-group-item:hover { background-color: var(--bs-secondary-bg); }
+
+      [data-bs-theme="dark"] body { background-color: #121212; }
+      [data-bs-theme="dark"] .nav-pills .nav-link { color: #ccc; }
+      [data-bs-theme="dark"] .nav-pills .nav-link.active { background-color: #0d6efd; color: white; }
+      [data-bs-theme="dark"] .form-card { background-color: #1e1e1e !important; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+      [data-bs-theme="dark"] .text-muted { color: #aaa !important; }
+
+      #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+      #loginCard { max-width: 380px; width: 100%; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    </style>
+  </head>
+  <body>
+
+    <div id="loginScreen" class="container d-none">
+      <div class="card form-card p-4 bg-white border-0" id="loginCard">
+        <h5 class="text-center fw-bold mb-3">تسجيل الدخول</h5>
+        <form id="loginForm" onsubmit="handleLogin(this)">
+          <div class="mb-3">
+            <input type="email" class="form-control" name="email" placeholder="البريد الإلكتروني" required>
+          </div>
+          <div class="mb-3">
+            <input type="password" class="form-control" name="password" placeholder="كلمة المرور" required>
+          </div>
+          <div id="loginError" class="alert alert-danger py-2 small d-none"></div>
+          <button type="submit" class="btn btn-primary w-100 fw-bold">دخول</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="appScreen" class="d-none">
+
+    <div class="container pt-3 pb-1 d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0 text-secondary" id="appTitle">مصاريفك</h5>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm rounded-circle" onclick="handleLogout()" title="تسجيل الخروج">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+        <button class="btn btn-outline-secondary btn-sm rounded-circle" onclick="toggleDarkMode()" id="darkModeBtn">
+          <i class="bi bi-moon-stars-fill"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="container py-2">
+
+      <div class="row g-2 mb-3">
+        <div class="col-4">
+          <div class="card balance-card bg-bank p-2 text-center shadow-sm">
+            <small class="opacity-75">البنك</small>
+            <h5 class="fw-bold mb-0" id="displayBank">...</h5>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="card balance-card bg-cash p-2 text-center shadow-sm">
+            <small class="opacity-75">الكاش</small>
+            <h5 class="fw-bold mb-0" id="displayCash">...</h5>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="card balance-card bg-debt p-2 text-center shadow-sm">
+            <small class="opacity-75">التزام شهري</small>
+            <h5 class="fw-bold mb-0" id="monthlyCommitment">...</h5>
+          </div>
+        </div>
+      </div>
+
+      <ul class="nav nav-pills nav-fill mb-3" id="pills-tab" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pills-home" type="button">تسجيل</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pills-profile" type="button">قسط</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pills-report" type="button">📊 السجل</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pills-analysis" type="button">📈 تحليل</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pills-search" type="button">🔍 بحث</button></li>
+      </ul>
+
+      <div class="tab-content" id="pills-tabContent">
+
+        <div class="tab-pane fade show active" id="pills-home">
+          <div class="card form-card p-3 bg-white border-0">
+            <form id="expenseForm" onsubmit="handleDailySubmit(this)">
+              <div class="mb-3">
+                <input type="date" class="form-control" name="date" id="dateInput" required>
+              </div>
+              <div class="mb-3">
+                <div class="btn-group w-100" role="group">
+                  <input type="radio" class="btn-check" name="type" id="t-exp" value="مصروف" checked onchange="toggleFields()">
+                  <label class="btn btn-outline-danger" for="t-exp">مصروف</label>
+                  <input type="radio" class="btn-check" name="type" id="t-with" value="سحب كاش" onchange="toggleFields()">
+                  <label class="btn btn-outline-secondary" for="t-with">سحب</label>
+                  <input type="radio" class="btn-check" name="type" id="t-inc" value="دخل" onchange="toggleFields()">
+                  <label class="btn btn-outline-success" for="t-inc">دخل</label>
+                </div>
+              </div>
+
+              <div class="mb-3" id="categoryGroup">
+                <label class="form-label small text-muted">التصنيف</label>
+                <div class="input-group">
+                  <select class="form-select" name="category" id="catInput" onchange="checkBudget()">
+                    <option value="" selected disabled>-- اختر التصنيف --</option>
+                    <option value="طعام وشرب">🍔 طعام وسوبرماركت</option>
+                    <option value="لحوم">🥩 لحوم</option>
+                    <option value="بنزين">⛽ بنزين</option>
+                    <option value="غسيل سيارة">🚿 غسيل سيارة</option>
+                    <option value="مصاريف صيانة">🔧 مصاريف صيانة</option>
+                    <option value="مواصلات">🚕 مواصلات عامة</option>
+                    <option value="فاتورة نت">🌐 فاتورة نت</option>
+                    <option value="فاتورة موبايل">📱 فاتورة موبايل</option>
+                    <option value="فاتورة تليفون ارضي">☎️ تليفون أرضي</option>
+                    <option value="فاتورة كهرباء">⚡ فاتورة كهرباء</option>
+                    <option value="فاتورة غاز">🔥 فاتورة غاز</option>
+                    <option value="أقساط كارت مشتريات">💳 أقساط كارت مشتريات</option>
+                    <option value="جمعيات">💸 جمعيات</option>
+                    <option value="تسوق">🛒 تسوق وملابس</option>
+                    <option value="صحة">💊 علاج وصحة</option>
+                    <option value="أخرى">📦 أخرى</option>
+                  </select>
+                  <button class="btn btn-outline-secondary" type="button" onclick="openPresetModal()" title="اختر من الثوابت">⚡</button>
+                </div>
+                <div id="budgetContainer" class="mt-2 d-none">
+                  <div class="d-flex justify-content-between small text-muted">
+                     <span>ميزانية: <span id="budgetText"></span></span>
+                     <span id="budgetPercent"></span>
+                  </div>
+                  <div class="progress" style="height: 6px;">
+                    <div class="progress-bar bg-success" id="budgetBar" role="progressbar" style="width: 0%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="input-group mb-3">
+                <input type="number" class="form-control fw-bold" name="amount" placeholder="المبلغ" step="0.01" required>
+                <select class="form-select" name="method" id="methodSelect" style="max-width: 100px;">
+                  <option value="كاش">كاش</option>
+                  <option value="بنك">بنك</option>
+                </select>
+              </div>
+
+              <input type="text" class="form-control mb-3" name="notes" placeholder="ملاحظات..">
+              <button type="submit" class="btn btn-primary w-100 fw-bold">حفظ</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="pills-profile">
+          <div class="card form-card p-3 bg-white border-0">
+            <h6 class="text-center mb-3 text-danger">تسجيل دين/قسط جديد</h6>
+            <form id="installmentForm" onsubmit="handleInstallmentSubmit(this)">
+              <div class="mb-2">
+                <label class="small text-muted">اسم السلعة/القسط</label>
+                <input type="text" class="form-control" name="itemName" placeholder="مثال: موبايل سامسونج" required>
+              </div>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="small text-muted">المبلغ الكلي</label>
+                  <input type="number" class="form-control" name="totalAmount" id="totalAmount" oninput="calcMonthly()" required>
+                </div>
+                <div class="col-6">
+                  <label class="small text-muted">عدد الشهور</label>
+                  <input type="number" class="form-control" name="months" id="monthsCount" oninput="calcMonthly()" required>
+                </div>
+              </div>
+              <div class="alert alert-secondary p-2 text-center mb-2">
+                القسط الشهري: <strong id="monthlyDisplay">0.00</strong>
+              </div>
+              <div class="mb-3">
+                <label class="small text-muted">موعد أول قسط</label>
+                <input type="date" class="form-control" name="startDate" required>
+              </div>
+              <button type="submit" class="btn btn-danger w-100 fw-bold">حفظ خطة التقسيط</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="pills-report">
+            <div class="card form-card p-3 bg-white border-0">
+              <div class="row g-2 mb-3">
+                <div class="col-5">
+                  <select id="reportMonth" class="form-select">
+                    <option value="0">يناير</option>
+                    <option value="1">فبراير</option>
+                    <option value="2">مارس</option>
+                    <option value="3">أبريل</option>
+                    <option value="4">مايو</option>
+                    <option value="5">يونيو</option>
+                    <option value="6">يوليو</option>
+                    <option value="7">أغسطس</option>
+                    <option value="8">سبتمبر</option>
+                    <option value="9">أكتوبر</option>
+                    <option value="10">نوفمبر</option>
+                    <option value="11">ديسمبر</option>
+                  </select>
+                </div>
+                <div class="col-4">
+                  <select id="reportYear" class="form-select">
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                  </select>
+                </div>
+                <div class="col-3">
+                  <button class="btn btn-primary w-100" onclick="loadMonthReport()"><i class="bi bi-search"></i></button>
+                </div>
+              </div>
+              <div class="alert alert-secondary border text-center mb-3">
+                <div class="row">
+                  <div class="col-6 border-end border-secondary">
+                    <small>مصروفات</small>
+                    <div class="text-danger fw-bold" id="monthExpTotal">0</div>
+                  </div>
+                  <div class="col-6">
+                    <small>دخل</small>
+                    <div class="text-success fw-bold" id="monthIncTotal">0</div>
+                  </div>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle" style="font-size: 0.85rem;">
+                  <thead class="table-light">
+                    <tr><th>يوم</th><th>تفاصيل</th><th>مبلغ</th><th>إجراء</th></tr>
+                  </thead>
+                  <tbody id="reportTableBody">
+                    <tr><td colspan="4" class="text-center text-muted">اختر التاريخ واضغط بحث</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="pills-analysis">
+          <div class="card form-card p-3 bg-white border-0">
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <select id="chartMonth" class="form-select form-select-sm">
+                  <option value="0">يناير</option><option value="1">فبراير</option><option value="2">مارس</option>
+                  <option value="3">أبريل</option><option value="4">مايو</option><option value="5">يونيو</option>
+                  <option value="6">يوليو</option><option value="7">أغسطس</option><option value="8">سبتمبر</option>
+                  <option value="9">أكتوبر</option><option value="10">نوفمبر</option><option value="11">ديسمبر</option>
+                </select>
+              </div>
+              <div class="col-4">
+                <select id="chartYear" class="form-select form-select-sm">
+                  <option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+                </select>
+              </div>
+              <div class="col-2">
+                <button class="btn btn-sm btn-dark w-100" onclick="loadChart()"><i class="bi bi-pie-chart-fill"></i></button>
+              </div>
+            </div>
+
+            <div class="text-center" style="position: relative; height:250px;">
+               <canvas id="expenseChart"></canvas>
+            </div>
+            <div id="chartMsg" class="text-center text-muted mt-2 small"></div>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="pills-search">
+            <div class="card form-card p-3 bg-white border-0">
+              <div class="input-group mb-3">
+                <input type="text" class="form-control" id="searchInput" placeholder="ابحث عن كلمة (مثلاً: سباك)...">
+                <button class="btn btn-primary" onclick="performSearch()"><i class="bi bi-search"></i></button>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover" style="font-size: 0.85rem;">
+                   <thead class="table-light"><tr><th>التاريخ</th><th>التفاصيل</th><th>المبلغ</th></tr></thead>
+                   <tbody id="searchTableBody">
+                     <tr><td colspan="3" class="text-center text-muted small">نتائج البحث تظهر هنا...</td></tr>
+                   </tbody>
+                </table>
+              </div>
+            </div>
+        </div>
+
+      </div> <hr class="my-4 border-secondary">
+
+      <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-list-check"></i> أقساط عليك سدادها</h6>
+      <div class="alert alert-dark d-flex justify-content-between align-items-center mb-3">
+        <span>إجمالي المديونية المتبقية</span>
+        <strong id="totalDebtDisplay" class="fs-5">0</strong>
+      </div>
+      <div id="installmentsList"></div>
+
+    </div>
+
+    <div class="modal fade" id="presetModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title fs-6" id="modalTitle">الثوابت</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <ul class="nav nav-tabs mb-3" id="modalTabs">
+              <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-select" type="button">اختيار</button></li>
+              <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-add" type="button">إضافة جديد</button></li>
+            </ul>
+            <div class="tab-content">
+              <div class="tab-pane fade show active" id="tab-select">
+                <div id="loadingPresets" class="text-center text-muted small" style="display:none;">جاري التحميل...</div>
+                <div id="emptyPresetsMsg" class="text-center text-muted small d-none">لا توجد ثوابت محفوظة لهذا التصنيف</div>
+                <div class="list-group" id="presetsList"></div>
+              </div>
+              <div class="tab-pane fade" id="tab-add">
+                <form id="presetForm" onsubmit="handleNewPreset(this)">
+                  <input type="hidden" name="presetCategory" id="hiddenCatName">
+                  <div class="mb-2">
+                    <label class="small text-muted">الاسم</label>
+                    <input type="text" class="form-control" name="presetName" required>
+                  </div>
+                  <div class="mb-3">
+                    <label class="small text-muted">المبلغ</label>
+                    <input type="number" class="form-control" name="presetAmount" step="0.01" required>
+                  </div>
+                  <button type="submit" class="btn btn-primary w-100">حفظ</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="editModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-warning"><h5 class="modal-title fs-6 text-dark">تعديل العملية</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <form id="editForm" onsubmit="handleEditSubmit(this)">
+              <input type="hidden" name="editId" id="editId">
+              <div class="mb-3"><label class="small">التاريخ</label><input type="date" class="form-control" name="editDate" id="editDate" required></div>
+              <div class="mb-3"><label class="small">نوع العملية</label><select class="form-select" name="editType" id="editType"><option value="مصروف">مصروف</option><option value="دخل">دخل</option><option value="سحب كاش">سحب كاش</option></select></div>
+              <div class="mb-3"><label class="small">التصنيف</label><input type="text" class="form-control" name="editCategory" id="editCategory" list="catList"><datalist id="catList"><option value="طعام وشرب"><option value="بنزين"><option value="مواصلات"><option value="فاتورة نت"></datalist></div>
+              <div class="mb-3"><label class="small">المبلغ</label><input type="number" class="form-control" name="editAmount" id="editAmount" step="0.01" required></div>
+              <div class="mb-3"><label class="small">طريقة الدفع</label><select class="form-select" name="editMethod" id="editMethod"><option value="كاش">كاش</option><option value="بنك">بنك</option></select></div>
+              <div class="mb-3"><label class="small">ملاحظات</label><input type="text" class="form-control" name="editNotes" id="editNotes"></div>
+              <button type="submit" class="btn btn-warning w-100 fw-bold">حفظ التعديلات</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
+      const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
+      const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      var myModal, editModal, myChart = null;
+
+      async function initAuth() {
+        const { data: { session } } = await db.auth.getSession();
+        if (session) { onLoggedIn(); } else { showLogin(); }
+        db.auth.onAuthStateChange((event, session) => {
+          if (session) { onLoggedIn(); } else { showLogin(); }
+        });
+      }
+
+      function showLogin() {
+        document.getElementById("loginScreen").classList.remove("d-none");
+        document.getElementById("appScreen").classList.add("d-none");
+      }
+
+      function onLoggedIn() {
+        document.getElementById("loginScreen").classList.add("d-none");
+        document.getElementById("appScreen").classList.remove("d-none");
+        initApp();
+      }
+
+      async function handleLogin(form) {
+        event.preventDefault();
+        const btn = form.querySelector("button");
+        const errBox = document.getElementById("loginError");
+        errBox.classList.add("d-none");
+        btn.disabled = true; btn.innerText = "جاري الدخول...";
+        const { error } = await db.auth.signInWithPassword({
+          email: form.email.value,
+          password: form.password.value
+        });
+        btn.disabled = false; btn.innerText = "دخول";
+        if (error) {
+          errBox.textContent = "بيانات الدخول غير صحيحة";
+          errBox.classList.remove("d-none");
+        }
+      }
+
+      function handleLogout() {
+        db.auth.signOut();
+      }
+
+      var appInitialized = false;
+      function initApp() {
+        if (appInitialized) { refreshAll(); return; }
+        appInitialized = true;
+
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+
+        document.getElementById('dateInput').valueAsDate = new Date();
+        var d = new Date();
+        document.getElementById('reportMonth').value = d.getMonth();
+        document.getElementById('reportYear').value = d.getFullYear();
+        document.getElementById('chartMonth').value = d.getMonth();
+        document.getElementById('chartYear').value = d.getFullYear();
+
+        refreshAll();
+        myModal = new bootstrap.Modal(document.getElementById('presetModal'));
+        editModal = new bootstrap.Modal(document.getElementById('editModal'));
+      }
+
+      function toggleDarkMode() {
+        const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-bs-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme);
+      }
+      function updateThemeIcon(theme) {
+        const btn = document.getElementById('darkModeBtn');
+        const title = document.getElementById('appTitle');
+        if (theme === 'dark') {
+          btn.innerHTML = '<i class="bi bi-sun-fill"></i>';
+          btn.classList.replace('btn-outline-secondary', 'btn-outline-warning');
+          title.classList.replace('text-secondary', 'text-light');
+        } else {
+          btn.innerHTML = '<i class="bi bi-moon-stars-fill"></i>';
+          btn.classList.replace('btn-outline-warning', 'btn-outline-secondary');
+          title.classList.replace('text-light', 'text-secondary');
+        }
+      }
+
+      function monthRange(month, year) {
+        const start = new Date(year, month, 1).toISOString().slice(0, 10);
+        const end = new Date(year, parseInt(month) + 1, 1).toISOString().slice(0, 10);
+        return { start, end };
+      }
+
+      async function getBalances() {
+        const { data, error } = await db.from('transactions').select('type, amount, method');
+        if (error) { console.error(error); return { bank: 0, cash: 0 }; }
+        let bank = 0, cash = 0;
+        data.forEach(row => {
+          const amount = parseFloat(row.amount) || 0;
+          if (row.type === 'دخل') { row.method === 'بنك' ? bank += amount : cash += amount; }
+          else if (row.type === 'مصروف') { row.method === 'بنك' ? bank -= amount : cash -= amount; }
+          else if (row.type === 'سحب كاش') { bank -= amount; cash += amount; }
+        });
+        return { bank, cash };
+      }
+
+      async function addNewTransaction(payload) {
+        const { error } = await db.from('transactions').insert({
+          date: payload.date,
+          type: payload.type,
+          category: payload.category,
+          amount: parseFloat(payload.amount),
+          notes: payload.notes,
+          method: payload.method
+        });
+        if (error) throw error;
+        return getBalances();
+      }
+
+      async function deleteTransaction(id) {
+        const { error } = await db.from('transactions').delete().eq('id', id);
+        if (error) throw error;
+        return 'تم الحذف بنجاح';
+      }
+
+      async function editTransaction(payload) {
+        const { error } = await db.from('transactions').update({
+          date: payload.editDate,
+          type: payload.editType,
+          category: payload.editCategory,
+          amount: parseFloat(payload.editAmount),
+          notes: payload.editNotes,
+          method: payload.editMethod
+        }).eq('id', payload.editId);
+        if (error) throw error;
+        return 'تم التعديل بنجاح';
+      }
+
+      async function getCategoryBudget(category) {
+        const { data: budgetRow } = await db.from('budgets').select('budget_limit').eq('category', category).maybeSingle();
+        if (!budgetRow || !budgetRow.budget_limit) return { limit: 0, current: 0 };
+        const limit = parseFloat(budgetRow.budget_limit);
+        const now = new Date();
+        const { start, end } = monthRange(now.getMonth(), now.getFullYear());
+        const { data: rows } = await db.from('transactions').select('amount')
+          .eq('category', category).eq('type', 'مصروف').gte('date', start).lt('date', end);
+        const current = (rows || []).reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        return { limit, current };
+      }
+
+      async function searchGlobal(keyword) {
+        const { data, error } = await db.from('transactions')
+          .select('date, type, category, amount, notes, method')
+          .or(`notes.ilike.%${keyword}%,category.ilike.%${keyword}%`)
+          .order('date', { ascending: false })
+          .limit(20);
+        if (error) { console.error(error); return []; }
+        return data.map(row => ({ ...row, date: new Date(row.date).toLocaleDateString('ar-EG') }));
+      }
+
+      async function addInstallmentPlan(payload) {
+        const monthlyPayment = (parseFloat(payload.totalAmount) / parseFloat(payload.months)).toFixed(2);
+        const { error } = await db.from('cc_plans').insert({
+          item_name: payload.itemName,
+          total_amount: parseFloat(payload.totalAmount),
+          months: parseInt(payload.months),
+          monthly_payment: parseFloat(monthlyPayment),
+          start_date: payload.startDate,
+          status: 'Active'
+        });
+        if (error) throw error;
+        return 'تم تسجيل خطة التقسيط بنجاح';
+      }
+
+      async function getCCReport() {
+        const { data, error } = await db.from('cc_plans').select('*').eq('status', 'Active');
+        if (error) { console.error(error); return { plans: [], totalMonthlyDue: 0, totalDebt: 0 }; }
+
+        const report = [];
+        let totalMonthlyDue = 0, totalDebt = 0;
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+
+        data.forEach(row => {
+          const start = new Date(row.start_date);
+          const monthsDuration = row.months;
+          const monthlyVal = parseFloat(row.monthly_payment);
+
+          const monthDiff = (currentYear - start.getFullYear()) * 12 + (currentMonth - start.getMonth());
+          const adjustment = (today.getDate() >= start.getDate()) ? 1 : 0;
+          let monthsPassed = monthDiff + adjustment;
+
+          if (today < start) monthsPassed = 0;
+          if (monthsPassed >= monthsDuration) return;
+
+          const remainingMonths = monthsDuration - Math.max(0, monthsPassed);
+          const nextPaymentDate = new Date(start);
+          nextPaymentDate.setMonth(start.getMonth() + monthsPassed);
+
+          totalMonthlyDue += monthlyVal;
+          totalDebt += remainingMonths * monthlyVal;
+
+          report.push({
+            name: row.item_name,
+            monthly: monthlyVal,
+            remaining: remainingMonths,
+            totalRemaining: (remainingMonths * monthlyVal).toFixed(2),
+            nextDate: nextPaymentDate.toLocaleDateString('ar-EG')
+          });
+        });
+
+        return { plans: report, totalMonthlyDue, totalDebt };
+      }
+
+      async function getSavedPresets(category) {
+        const { data, error } = await db.from('fixed_expenses').select('name, amount').eq('category', category);
+        if (error) { console.error(error); return []; }
+        return data;
+      }
+
+      async function saveNewPreset(payload) {
+        const { error } = await db.from('fixed_expenses').insert({
+          category: payload.presetCategory,
+          name: payload.presetName,
+          amount: parseFloat(payload.presetAmount)
+        });
+        if (error) throw error;
+        return 'تم الحفظ بنجاح';
+      }
+
+      async function getMonthDetails(month, year) {
+        const { start, end } = monthRange(month, year);
+        const { data, error } = await db.from('transactions').select('*')
+          .gte('date', start).lt('date', end).order('date', { ascending: true });
+        if (error) { console.error(error); return { list: [], totalExp: 0, totalInc: 0 }; }
+
+        let totalExpense = 0, totalIncome = 0;
+        const transactions = data.map(row => {
+          const amount = parseFloat(row.amount) || 0;
+          if (row.type === 'مصروف') totalExpense += amount;
+          if (row.type === 'دخل') totalIncome += amount;
+          const d = new Date(row.date);
+          return {
+            id: row.id,
+            date: d.toLocaleDateString('en-CA'),
+            displayDate: d.toLocaleDateString('ar-EG'),
+            type: row.type,
+            category: row.category,
+            amount,
+            notes: row.notes,
+            method: row.method
+          };
+        }).reverse();
+
+        return { list: transactions, totalExp: totalExpense, totalInc: totalIncome };
+      }
+
+      async function getChartData(month, year) {
+        const { start, end } = monthRange(month, year);
+        const { data, error } = await db.from('transactions').select('category, amount')
+          .eq('type', 'مصروف').gte('date', start).lt('date', end);
+        if (error) { console.error(error); return { labels: [], data: [] }; }
+        const stats = {};
+        data.forEach(row => {
+          const amount = parseFloat(row.amount) || 0;
+          stats[row.category] = (stats[row.category] || 0) + amount;
+        });
+        return { labels: Object.keys(stats), data: Object.values(stats) };
+      }
+
+      function loadChart() {
+        var m = document.getElementById('chartMonth').value;
+        var y = document.getElementById('chartYear').value;
+        document.getElementById('chartMsg').innerText = "جاري تحميل البيانات...";
+
+        getChartData(m, y).then(function(data) {
+          document.getElementById('chartMsg').innerText = "";
+          var ctx = document.getElementById('expenseChart').getContext('2d');
+
+          if (myChart) { myChart.destroy(); }
+
+          if (data.data.length === 0) {
+            document.getElementById('chartMsg').innerText = "لا توجد مصروفات في هذا الشهر";
+            return;
+          }
+
+          myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: data.labels,
+              datasets: [{
+                data: data.data,
+                backgroundColor: [
+                  '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                  '#FF9F40', '#E7E9ED', '#71B37C', '#EC932F', '#525174'
+                ],
+                hoverOffset: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } }
+              }
+            }
+          });
+        });
+      }
+
+      function checkBudget() {
+        var cat = document.getElementById('catInput').value;
+        var container = document.getElementById('budgetContainer');
+        var bar = document.getElementById('budgetBar');
+        var txt = document.getElementById('budgetText');
+        var per = document.getElementById('budgetPercent');
+        container.classList.add('d-none');
+
+        getCategoryBudget(cat).then(function(res) {
+          if (res.limit > 0) {
+            container.classList.remove('d-none');
+            var percent = (res.current / res.limit) * 100;
+            bar.style.width = percent + "%";
+            if (percent > 100) { bar.className = "progress-bar bg-danger"; }
+            else if (percent > 80) { bar.className = "progress-bar bg-warning"; }
+            else { bar.className = "progress-bar bg-success"; }
+            txt.innerText = res.current.toLocaleString() + " / " + res.limit.toLocaleString();
+            per.innerText = Math.round(percent) + "%";
+          }
+        });
+      }
+
+      function refreshAll() {
+        getBalances().then(updateBalances);
+        getCCReport().then(updateInstallments);
+      }
+      function toggleFields() {
+        const type = document.querySelector('input[name="type"]:checked').value;
+        document.getElementById('categoryGroup').style.display = (type === 'مصروف') ? 'block' : 'none';
+      }
+      function handleDailySubmit(form) {
+        event.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        const originalText = "حفظ";
+        btn.disabled = true; btn.innerText = "جاري الحفظ...";
+        addNewTransaction({
+          date: form.date.value,
+          type: form.querySelector('input[name="type"]:checked').value,
+          category: form.category ? form.category.value : '',
+          amount: form.amount.value,
+          method: form.method.value,
+          notes: form.notes.value
+        }).then(function(balances) {
+          updateBalances(balances);
+          form.reset(); document.getElementById('dateInput').valueAsDate = new Date();
+          btn.className = "btn btn-success w-100 fw-bold"; btn.innerText = "تم الحفظ ✅";
+          document.getElementById('budgetContainer').classList.add('d-none');
+          setTimeout(() => { btn.className = "btn btn-primary w-100 fw-bold"; btn.innerText = originalText; btn.disabled = false; }, 2000);
+        }).catch(function(err) {
+          console.error(err);
+          btn.disabled = false; btn.innerText = originalText;
+          alert("حدث خطأ أثناء الحفظ");
+        });
+      }
+      function handleInstallmentSubmit(form) {
+        event.preventDefault();
+        const btn = form.querySelector('button');
+        const originalText = "حفظ خطة التقسيط";
+        btn.disabled = true; btn.innerText = "جاري التسجيل...";
+        addInstallmentPlan({
+          itemName: form.itemName.value, totalAmount: form.totalAmount.value,
+          months: form.months.value, startDate: form.startDate.value
+        }).then(function() {
+          form.reset(); document.getElementById('monthlyDisplay').innerText = "0.00";
+          btn.className = "btn btn-success w-100 fw-bold"; btn.innerText = "تم الحفظ ✅";
+          setTimeout(() => { btn.className = "btn btn-danger w-100 fw-bold"; btn.innerText = originalText; btn.disabled = false; }, 2000);
+          refreshAll();
+        }).catch(function(err) {
+          console.error(err);
+          btn.disabled = false; btn.innerText = originalText;
+          alert("حدث خطأ أثناء الحفظ");
+        });
+      }
+      function calcMonthly() {
+        let total = document.getElementById('totalAmount').value;
+        let months = document.getElementById('monthsCount').value;
+        if (total && months) { document.getElementById('monthlyDisplay').innerText = (total / months).toFixed(2); }
+      }
+
+      function loadMonthReport() {
+        var m = document.getElementById('reportMonth').value;
+        var y = document.getElementById('reportYear').value;
+        var tbody = document.getElementById('reportTableBody');
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">جاري التحميل...</td></tr>';
+        getMonthDetails(m, y).then(function(data) {
+          document.getElementById('monthExpTotal').textContent = Number(data.totalExp).toLocaleString();
+          document.getElementById('monthIncTotal').textContent = Number(data.totalInc).toLocaleString();
+          tbody.innerHTML = "";
+          if (data.list.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">لا توجد عمليات</td></tr>'; return; }
+          data.list.forEach(function(item) {
+            var colorClass = item.type === 'دخل' ? 'text-success' : '';
+            tbody.innerHTML += `<tr><td><small class="opacity-75">${item.displayDate.split('/')[0]}</small></td><td><div class="fw-bold">${item.category}</div><small class="opacity-75" style="font-size:0.75em">${item.notes}</small></td><td class="fw-bold ${colorClass}">${Number(item.amount).toLocaleString()}</td><td><button class="btn btn-sm btn-link text-primary p-0 me-2" onclick='openEditModal(${JSON.stringify(item)})'><i class="bi bi-pencil-square"></i></button><button class="btn btn-sm btn-link text-danger p-0" onclick="deleteItem(${item.id})"><i class="bi bi-trash"></i></button></td></tr>`;
+          });
+        });
+      }
+      function deleteItem(id) {
+        if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
+          deleteTransaction(id).then(function() { loadMonthReport(); refreshAll(); }).catch(function(err) {
+            console.error(err); alert("حدث خطأ أثناء الحذف");
+          });
+        }
+      }
+      function openEditModal(item) {
+        document.getElementById('editId').value = item.id;
+        document.getElementById('editDate').value = item.date;
+        document.getElementById('editType').value = item.type;
+        document.getElementById('editCategory').value = item.category;
+        document.getElementById('editAmount').value = item.amount;
+        document.getElementById('editMethod').value = item.method;
+        document.getElementById('editNotes').value = item.notes;
+        editModal.show();
+      }
+      function handleEditSubmit(form) {
+        event.preventDefault();
+        editTransaction({
+          editId: form.editId.value, editDate: form.editDate.value,
+          editType: form.editType.value, editCategory: form.editCategory.value,
+          editAmount: form.editAmount.value, editNotes: form.editNotes.value, editMethod: form.editMethod.value
+        }).then(function() { editModal.hide(); loadMonthReport(); refreshAll(); }).catch(function(err) {
+          console.error(err); alert("حدث خطأ أثناء التعديل");
+        });
+      }
+      function performSearch() {
+        var key = document.getElementById('searchInput').value;
+        if (key.length < 2) return;
+        var tbody = document.getElementById('searchTableBody');
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center">جاري البحث...</td></tr>';
+        searchGlobal(key).then(function(results) {
+          tbody.innerHTML = "";
+          if (results.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">لا توجد نتائج</td></tr>'; return; }
+          results.forEach(function(item) {
+            tbody.innerHTML += `<tr><td><small>${item.date}</small></td><td><div>${item.category}</div><small class="text-muted">${item.notes}</small></td><td class="fw-bold">${Number(item.amount).toLocaleString()}</td></tr>`;
+          });
+        });
+      }
+
+      function openPresetModal() {
+        var catSelect = document.getElementById('catInput');
+        var selectedCat = catSelect.value;
+        if (!selectedCat) { alert("الرجاء اختيار التصنيف أولاً!"); return; }
+        document.getElementById('modalTitle').innerText = "ثوابت: " + selectedCat;
+        document.getElementById('hiddenCatName').value = selectedCat;
+        myModal.show(); loadPresets(selectedCat);
+      }
+      function loadPresets(category) {
+        document.getElementById('loadingPresets').style.display = 'block';
+        document.getElementById('presetsList').innerHTML = '';
+        document.getElementById('emptyPresetsMsg').classList.add('d-none');
+        getSavedPresets(category).then(function(items) {
+          document.getElementById('loadingPresets').style.display = 'none';
+          if (items.length === 0) { document.getElementById('emptyPresetsMsg').classList.remove('d-none'); return; }
+          var html = '';
+          items.forEach(function(item) { html += `<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" onclick="usePreset('${item.name}', '${item.amount}')"><span>${item.name}</span><span class="badge bg-primary rounded-pill">${item.amount}</span></button>`; });
+          document.getElementById('presetsList').innerHTML = html;
+        });
+      }
+      function usePreset(name, amount) { document.querySelector('input[name="amount"]').value = amount; document.querySelector('input[name="notes"]').value = name; myModal.hide(); }
+      function handleNewPreset(form) {
+        event.preventDefault();
+        saveNewPreset({ presetCategory: form.presetCategory.value, presetName: form.presetName.value, presetAmount: form.presetAmount.value }).then(function() {
+          var currentCat = document.getElementById('hiddenCatName').value;
+          form.reset(); document.getElementById('hiddenCatName').value = currentCat;
+          var triggerEl = document.querySelector('#modalTabs button[data-bs-target="#tab-select"]');
+          bootstrap.Tab.getInstance(triggerEl).show(); loadPresets(currentCat);
+        }).catch(function(err) {
+          console.error(err); alert("حدث خطأ أثناء الحفظ");
+        });
+      }
+
+      function updateBalances(b) { document.getElementById("displayBank").textContent = Number(b.bank).toLocaleString(); document.getElementById("displayCash").textContent = Number(b.cash).toLocaleString(); }
+      function updateInstallments(report) {
+        document.getElementById("monthlyCommitment").textContent = Number(report.totalMonthlyDue).toLocaleString();
+        document.getElementById("totalDebtDisplay").textContent = Number(report.totalDebt).toLocaleString();
+        const listContainer = document.getElementById("installmentsList");
+        listContainer.innerHTML = "";
+        if (report.plans.length === 0) { listContainer.innerHTML = '<div class="text-center text-muted small">لا توجد أقساط حالية.</div>'; return; }
+        report.plans.forEach(plan => {
+          listContainer.innerHTML += `<div class="installment-item position-relative"><div class="d-flex justify-content-between align-items-center"><div><h6 class="mb-0 fw-bold">${plan.name}</h6><small class="text-muted">ميعاد القادم: <span class="text-danger fw-bold">${plan.nextDate}</span></small></div><div class="text-end"><div class="fw-bold text-primary">${plan.monthly} ج.م</div><span class="badge bg-secondary" style="font-size:0.7em">باقي ${plan.remaining} قسط</span></div></div></div>`;
+        });
+      }
+
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function() {
+          navigator.serviceWorker.register("sw.js").catch(function(err) { console.error(err); });
+        });
+      }
+
+      initAuth();
+    </script>
+  </body>
+</html>
