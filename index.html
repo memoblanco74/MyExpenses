@@ -5,45 +5,120 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>مدير المصاريف</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1e3c72">
+    <meta name="theme-color" content="#0F5C56">
     <link rel="icon" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="مصاريفي">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
     <style>
-      body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-bottom: 80px; transition: background-color 0.3s; }
-      .balance-card { border: none; border-radius: 15px; color: white; transition: transform 0.2s; }
-      .balance-card:active { transform: scale(0.98); }
-      .bg-bank { background: linear-gradient(45deg, #1e3c72, #2a5298); }
-      .bg-cash { background: linear-gradient(45deg, #11998e, #38ef7d); }
-      .bg-debt { background: linear-gradient(45deg, #cb2d3e, #ef473a); }
-      .form-card { border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: background-color 0.3s, color 0.3s; }
-      .nav-pills .nav-link.active { background-color: #343a40; }
-      .nav-pills .nav-link { color: #555; font-weight: bold; }
-      .installment-item { border-right: 4px solid #cb2d3e; background: var(--bs-body-bg); margin-bottom: 10px; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-      .list-group-item { cursor: pointer; transition: background 0.2s; }
-      .list-group-item:hover { background-color: var(--bs-secondary-bg); }
+      :root {
+        --font-display: 'Cairo', sans-serif;
+        --font-body: 'Tajawal', sans-serif;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --radius-sm: 10px;
+      }
+      [data-bs-theme="light"] {
+        --bg: #EDF2F0;
+        --surface: #FFFFFF;
+        --surface-2: #F5F8F6;
+        --ink: #16241F;
+        --ink-muted: #62766F;
+        --border: #DCE6E1;
+        --primary: #0F5C56;
+        --primary-ink: #FFFFFF;
+        --success: #1B8A5A;
+        --danger: #B23B3B;
+        --amber: #B8862F;
+        --shadow: 0 10px 30px rgba(16,42,36,0.07);
+      }
+      [data-bs-theme="dark"] {
+        --bg: #0D1917;
+        --surface: #16302C;
+        --surface-2: #1C3A34;
+        --ink: #E9F2EF;
+        --ink-muted: #91ABA3;
+        --border: #234039;
+        --primary: #2FA98F;
+        --primary-ink: #06201B;
+        --success: #4FCB93;
+        --danger: #E5605C;
+        --amber: #E0A63E;
+        --shadow: 0 10px 32px rgba(0,0,0,0.4);
+      }
 
-      [data-bs-theme="dark"] body { background-color: #121212; }
-      [data-bs-theme="dark"] .nav-pills .nav-link { color: #ccc; }
-      [data-bs-theme="dark"] .nav-pills .nav-link.active { background-color: #0d6efd; color: white; }
-      [data-bs-theme="dark"] .form-card { background-color: #1e1e1e !important; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-      [data-bs-theme="dark"] .text-muted { color: #aaa !important; }
+      body { background-color: var(--bg); color: var(--ink); font-family: var(--font-body); padding-bottom: 90px; transition: background-color .3s, color .3s; }
+      h1, h2, h3, h4, h5, h6, .fw-bold, button, .btn, .nav-link { font-family: var(--font-display); }
 
-      #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-      #loginCard { max-width: 380px; width: 100%; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+      #appTitle { color: var(--ink); letter-spacing: .3px; }
+
+      .balance-card { border: none; border-radius: var(--radius-lg); color: var(--primary-ink); cursor: pointer; transition: transform .15s, box-shadow .15s; box-shadow: var(--shadow); width: 100%; text-align: start; }
+      .balance-card:active { transform: scale(.97); }
+      .balance-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+      .bg-bank { background: var(--primary); }
+      .bg-cash { background: var(--success); }
+      .bg-debt { background: var(--amber); }
+      .ledger-hint { font-size: .62rem; opacity: .85; font-family: var(--font-body); font-weight: 500; }
+
+      .form-card { background: var(--surface) !important; border-radius: var(--radius-lg); box-shadow: var(--shadow); color: var(--ink); transition: background-color .3s, color .3s; }
+
+      .nav-pills { background: var(--surface-2); border-radius: var(--radius-md); padding: 4px; }
+      .nav-pills .nav-link { color: var(--ink-muted); font-weight: 700; border-radius: var(--radius-sm); font-size: .8rem; }
+      .nav-pills .nav-link.active { background-color: var(--primary); color: var(--primary-ink); }
+
+      .installment-item { border-inline-start: 4px solid var(--amber); background: var(--surface-2); margin-bottom: 10px; padding: 12px; border-radius: var(--radius-sm); }
+
+      .list-group-item { cursor: pointer; transition: background .2s; background: var(--surface); color: var(--ink); border-color: var(--border); }
+      .list-group-item:hover { background-color: var(--surface-2); }
+
+      .form-control, .form-select { background-color: var(--surface-2); border: 1px solid var(--border); color: var(--ink); border-radius: var(--radius-sm); }
+      .form-control:focus, .form-select:focus { background-color: var(--surface-2); color: var(--ink); border-color: var(--primary); box-shadow: 0 0 0 .2rem rgba(15,92,86,.15); }
+      [data-bs-theme="dark"] .form-control:focus, [data-bs-theme="dark"] .form-select:focus { box-shadow: 0 0 0 .2rem rgba(47,169,143,.2); }
+      .form-control::placeholder { color: var(--ink-muted); opacity: .7; }
+
+      .btn-primary { background-color: var(--primary); border-color: var(--primary); }
+      .btn-primary:hover { filter: brightness(.92); background-color: var(--primary); border-color: var(--primary); }
+      .btn-danger { background-color: var(--danger); border-color: var(--danger); }
+      .btn-warning { background-color: var(--amber); border-color: var(--amber); color: #fff; }
+      .btn-outline-secondary { color: var(--ink-muted); border-color: var(--border); }
+      .btn-outline-secondary:hover { background-color: var(--surface-2); color: var(--ink); border-color: var(--border); }
+      .btn-check:checked + .btn-outline-danger { background-color: var(--danger); border-color: var(--danger); }
+      .btn-check:checked + .btn-outline-success { background-color: var(--success); border-color: var(--success); }
+      .btn-check:checked + .btn-outline-secondary { background-color: var(--ink-muted); border-color: var(--ink-muted); color: #fff; }
+
+      .modal-content { background: var(--surface); color: var(--ink); border-radius: var(--radius-lg); }
+      .modal-header, .modal-footer { border-color: var(--border); }
+      .table { color: var(--ink); }
+      .table-light, thead.table-light th { background: var(--surface-2) !important; color: var(--ink) !important; border-color: var(--border) !important; }
+      .table > :not(caption) > * > * { background: transparent; color: var(--ink); border-color: var(--border); }
+      .text-muted { color: var(--ink-muted) !important; }
+
+      .settings-row { border-color: var(--border) !important; }
+      .form-switch .form-check-input:checked { background-color: var(--primary); border-color: var(--primary); }
+
+      .alert-secondary { background: var(--surface-2); border-color: var(--border); color: var(--ink); }
+      .alert-dark { background: var(--primary); color: var(--primary-ink); border: none; }
+      .badge.bg-secondary { background-color: var(--ink-muted) !important; }
+      .badge.bg-primary { background-color: var(--primary) !important; }
+      .progress { background-color: var(--surface-2); }
+
+      #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+      #loginCard { max-width: 380px; width: 100%; background: var(--surface) !important; border-radius: var(--radius-lg); box-shadow: var(--shadow); color: var(--ink); }
     </style>
   </head>
   <body>
 
     <div id="loginScreen" class="container d-none">
-      <div class="card form-card p-4 bg-white border-0" id="loginCard">
+      <div class="card form-card p-4 border-0" id="loginCard">
         <h5 class="text-center fw-bold mb-3">تسجيل الدخول</h5>
         <form id="loginForm" onsubmit="handleLogin(this)">
           <div class="mb-3">
@@ -61,8 +136,11 @@
     <div id="appScreen" class="d-none">
 
     <div class="container pt-3 pb-1 d-flex justify-content-between align-items-center">
-      <h5 class="fw-bold mb-0 text-secondary" id="appTitle">مصاريفك</h5>
+      <h5 class="fw-bold mb-0" id="appTitle">مصاريفك</h5>
       <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm rounded-circle" onclick="openSettingsModal()" title="الميزانيات والالتزامات">
+          <i class="bi bi-sliders"></i>
+        </button>
         <button class="btn btn-outline-secondary btn-sm rounded-circle" onclick="handleLogout()" title="تسجيل الخروج">
           <i class="bi bi-box-arrow-right"></i>
         </button>
@@ -76,20 +154,32 @@
 
       <div class="row g-2 mb-3">
         <div class="col-4">
-          <div class="card balance-card bg-bank p-2 text-center shadow-sm">
-            <small class="opacity-75">البنك</small>
+          <div class="card balance-card bg-bank p-2" role="button" tabindex="0" onclick="openLedger('bank')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLedger('bank');}">
+            <div class="d-flex justify-content-between align-items-start">
+              <i class="bi bi-bank2 opacity-75"></i>
+              <span class="ledger-hint">التفاصيل ›</span>
+            </div>
+            <small class="opacity-75 d-block mt-1">البنك</small>
             <h5 class="fw-bold mb-0" id="displayBank">...</h5>
           </div>
         </div>
         <div class="col-4">
-          <div class="card balance-card bg-cash p-2 text-center shadow-sm">
-            <small class="opacity-75">الكاش</small>
+          <div class="card balance-card bg-cash p-2" role="button" tabindex="0" onclick="openLedger('cash')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLedger('cash');}">
+            <div class="d-flex justify-content-between align-items-start">
+              <i class="bi bi-wallet2 opacity-75"></i>
+              <span class="ledger-hint">التفاصيل ›</span>
+            </div>
+            <small class="opacity-75 d-block mt-1">الكاش</small>
             <h5 class="fw-bold mb-0" id="displayCash">...</h5>
           </div>
         </div>
         <div class="col-4">
-          <div class="card balance-card bg-debt p-2 text-center shadow-sm">
-            <small class="opacity-75">التزام شهري</small>
+          <div class="card balance-card bg-debt p-2" role="button" tabindex="0" onclick="openCommitmentModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCommitmentModal();}">
+            <div class="d-flex justify-content-between align-items-start">
+              <i class="bi bi-calendar2-check opacity-75"></i>
+              <span class="ledger-hint">التفاصيل ›</span>
+            </div>
+            <small class="opacity-75 d-block mt-1">التزام شهري</small>
             <h5 class="fw-bold mb-0" id="monthlyCommitment">...</h5>
           </div>
         </div>
@@ -106,7 +196,7 @@
       <div class="tab-content" id="pills-tabContent">
 
         <div class="tab-pane fade show active" id="pills-home">
-          <div class="card form-card p-3 bg-white border-0">
+          <div class="card form-card p-3 border-0">
             <form id="expenseForm" onsubmit="handleDailySubmit(this)">
               <div class="mb-3">
                 <input type="date" class="form-control" name="date" id="dateInput" required>
@@ -172,8 +262,8 @@
         </div>
 
         <div class="tab-pane fade" id="pills-profile">
-          <div class="card form-card p-3 bg-white border-0">
-            <h6 class="text-center mb-3 text-danger">تسجيل دين/قسط جديد</h6>
+          <div class="card form-card p-3 border-0">
+            <h6 class="text-center mb-3" style="color:var(--danger)">تسجيل دين/قسط جديد</h6>
             <form id="installmentForm" onsubmit="handleInstallmentSubmit(this)">
               <div class="mb-2">
                 <label class="small text-muted">اسم السلعة/القسط</label>
@@ -202,7 +292,7 @@
         </div>
 
         <div class="tab-pane fade" id="pills-report">
-            <div class="card form-card p-3 bg-white border-0">
+            <div class="card form-card p-3 border-0">
               <div class="row g-2 mb-3">
                 <div class="col-5">
                   <select id="reportMonth" class="form-select">
@@ -233,13 +323,13 @@
               </div>
               <div class="alert alert-secondary border text-center mb-3">
                 <div class="row">
-                  <div class="col-6 border-end border-secondary">
+                  <div class="col-6 border-end" style="border-color: var(--border) !important;">
                     <small>مصروفات</small>
-                    <div class="text-danger fw-bold" id="monthExpTotal">0</div>
+                    <div class="fw-bold" style="color:var(--danger)" id="monthExpTotal">0</div>
                   </div>
                   <div class="col-6">
                     <small>دخل</small>
-                    <div class="text-success fw-bold" id="monthIncTotal">0</div>
+                    <div class="fw-bold" style="color:var(--success)" id="monthIncTotal">0</div>
                   </div>
                 </div>
               </div>
@@ -257,7 +347,7 @@
         </div>
 
         <div class="tab-pane fade" id="pills-analysis">
-          <div class="card form-card p-3 bg-white border-0">
+          <div class="card form-card p-3 border-0">
             <div class="row g-2 mb-3">
               <div class="col-6">
                 <select id="chartMonth" class="form-select form-select-sm">
@@ -285,7 +375,7 @@
         </div>
 
         <div class="tab-pane fade" id="pills-search">
-            <div class="card form-card p-3 bg-white border-0">
+            <div class="card form-card p-3 border-0">
               <div class="input-group mb-3">
                 <input type="text" class="form-control" id="searchInput" placeholder="ابحث عن كلمة (مثلاً: سباك)...">
                 <button class="btn btn-primary" onclick="performSearch()"><i class="bi bi-search"></i></button>
@@ -301,9 +391,9 @@
             </div>
         </div>
 
-      </div> <hr class="my-4 border-secondary">
+      </div> <hr class="my-4" style="border-color: var(--border);">
 
-      <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-list-check"></i> أقساط عليك سدادها</h6>
+      <h6 class="fw-bold mb-3"><i class="bi bi-list-check"></i> أقساط عليك سدادها</h6>
       <div class="alert alert-dark d-flex justify-content-between align-items-center mb-3">
         <span>إجمالي المديونية المتبقية</span>
         <strong id="totalDebtDisplay" class="fs-5">0</strong>
@@ -350,18 +440,74 @@
     <div class="modal fade" id="editModal" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header bg-warning"><h5 class="modal-title fs-6 text-dark">تعديل العملية</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-header" style="background: var(--amber); color: #fff;"><h5 class="modal-title fs-6">تعديل العملية</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
           <div class="modal-body">
             <form id="editForm" onsubmit="handleEditSubmit(this)">
               <input type="hidden" name="editId" id="editId">
               <div class="mb-3"><label class="small">التاريخ</label><input type="date" class="form-control" name="editDate" id="editDate" required></div>
               <div class="mb-3"><label class="small">نوع العملية</label><select class="form-select" name="editType" id="editType"><option value="مصروف">مصروف</option><option value="دخل">دخل</option><option value="سحب كاش">سحب كاش</option></select></div>
-              <div class="mb-3"><label class="small">التصنيف</label><input type="text" class="form-control" name="editCategory" id="editCategory" list="catList"><datalist id="catList"><option value="طعام وشرب"><option value="بنزين"><option value="مواصلات"><option value="فاتورة نت"></datalist></div>
+              <div class="mb-3"><label class="small">التصنيف</label><input type="text" class="form-control" name="editCategory" id="editCategory" list="catList"><datalist id="catList"></datalist></div>
               <div class="mb-3"><label class="small">المبلغ</label><input type="number" class="form-control" name="editAmount" id="editAmount" step="0.01" required></div>
               <div class="mb-3"><label class="small">طريقة الدفع</label><select class="form-select" name="editMethod" id="editMethod"><option value="كاش">كاش</option><option value="بنك">بنك</option></select></div>
               <div class="mb-3"><label class="small">ملاحظات</label><input type="text" class="form-control" name="editNotes" id="editNotes"></div>
               <button type="submit" class="btn btn-warning w-100 fw-bold">حفظ التعديلات</button>
             </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fs-6">الميزانيات والالتزامات الشهرية</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted mb-3">حدد حد الميزانية الشهري لأي تصنيف (اختياري)، وفعّل مفتاح "التزام شهري" للتصنيفات الثابتة زي الفواتير عشان تظهر في شاشة الالتزام الشهري.</p>
+            <div id="settingsLoading" class="text-center text-muted small py-3">جاري التحميل...</div>
+            <div id="settingsList"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary w-100 fw-bold" onclick="saveAllSettings()">حفظ التعديلات</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="ledgerModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fs-6" id="ledgerModalTitle">السجل</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="ledgerLoading" class="text-center text-muted small py-3 d-none">جاري التحميل...</div>
+            <div id="ledgerEmpty" class="text-center text-muted small py-3 d-none">لا توجد عمليات</div>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle" style="font-size:0.85rem;">
+                <tbody id="ledgerTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="commitmentModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fs-6">سجل الالتزام الشهري</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <h6 class="small fw-bold text-muted mb-2">الأقساط الجارية</h6>
+            <div id="commitmentInstallments" class="mb-4"></div>
+            <h6 class="small fw-bold text-muted mb-2">الالتزامات الثابتة الشهرية</h6>
+            <div id="commitmentRecurring"></div>
           </div>
         </div>
       </div>
@@ -375,7 +521,29 @@
       const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZXdkYnBrZmJ4emh6ZG9hdHVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NTQ5MjYsImV4cCI6MjEwMzIzMDkyNn0.VEv9ASCg4kk3UK9u5956s_z3sXHPsBs1Cj7s9YKjIBI";
       const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      var myModal, editModal, myChart = null;
+      const CATEGORY_LIST = [
+        { value: 'طعام وشرب', label: '🍔 طعام وسوبرماركت' },
+        { value: 'لحوم', label: '🥩 لحوم' },
+        { value: 'بنزين', label: '⛽ بنزين' },
+        { value: 'غسيل سيارة', label: '🚿 غسيل سيارة' },
+        { value: 'مصاريف صيانة', label: '🔧 مصاريف صيانة' },
+        { value: 'مواصلات', label: '🚕 مواصلات عامة' },
+        { value: 'فاتورة نت', label: '🌐 فاتورة نت' },
+        { value: 'فاتورة موبايل', label: '📱 فاتورة موبايل' },
+        { value: 'فاتورة تليفون ارضي', label: '☎️ تليفون أرضي' },
+        { value: 'فاتورة كهرباء', label: '⚡ فاتورة كهرباء' },
+        { value: 'فاتورة غاز', label: '🔥 فاتورة غاز' },
+        { value: 'أقساط كارت مشتريات', label: '💳 أقساط كارت مشتريات' },
+        { value: 'جمعيات', label: '💸 جمعيات' },
+        { value: 'تسوق', label: '🛒 تسوق وملابس' },
+        { value: 'صحة', label: '💊 علاج وصحة' },
+        { value: 'أخرى', label: '📦 أخرى' }
+      ];
+
+      var myModal, editModal, settingsModal, ledgerModal, commitmentModal, myChart = null;
+      var currentLedgerAccount = null;
+      var reportLoaded = false;
+      var commitmentModalOpenFlag = false;
 
       async function initAuth() {
         const { data: { session } } = await db.auth.getSession();
@@ -433,9 +601,19 @@
         document.getElementById('chartMonth').value = d.getMonth();
         document.getElementById('chartYear').value = d.getFullYear();
 
+        var catListHtml = '';
+        CATEGORY_LIST.forEach(function(cat) { catListHtml += '<option value="' + cat.value + '">'; });
+        document.getElementById('catList').innerHTML = catListHtml;
+
         refreshAll();
         myModal = new bootstrap.Modal(document.getElementById('presetModal'));
         editModal = new bootstrap.Modal(document.getElementById('editModal'));
+        settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
+        ledgerModal = new bootstrap.Modal(document.getElementById('ledgerModal'));
+        commitmentModal = new bootstrap.Modal(document.getElementById('commitmentModal'));
+
+        document.getElementById('ledgerModal').addEventListener('hidden.bs.modal', function() { currentLedgerAccount = null; });
+        document.getElementById('commitmentModal').addEventListener('hidden.bs.modal', function() { commitmentModalOpenFlag = false; });
       }
 
       function toggleDarkMode() {
@@ -447,15 +625,12 @@
       }
       function updateThemeIcon(theme) {
         const btn = document.getElementById('darkModeBtn');
-        const title = document.getElementById('appTitle');
         if (theme === 'dark') {
           btn.innerHTML = '<i class="bi bi-sun-fill"></i>';
           btn.classList.replace('btn-outline-secondary', 'btn-outline-warning');
-          title.classList.replace('text-secondary', 'text-light');
         } else {
           btn.innerHTML = '<i class="bi bi-moon-stars-fill"></i>';
           btn.classList.replace('btn-outline-warning', 'btn-outline-secondary');
-          title.classList.replace('text-light', 'text-secondary');
         }
       }
 
@@ -488,7 +663,7 @@
           method: payload.method
         });
         if (error) throw error;
-        return getBalances();
+        return true;
       }
 
       async function deleteTransaction(id) {
@@ -520,6 +695,64 @@
           .eq('category', category).eq('type', 'مصروف').gte('date', start).lt('date', end);
         const current = (rows || []).reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
         return { limit, current };
+      }
+
+      async function getAllBudgets() {
+        const { data, error } = await db.from('budgets').select('category, budget_limit, is_recurring');
+        if (error) { console.error(error); return {}; }
+        const map = {};
+        (data || []).forEach(row => { map[row.category] = { limit: row.budget_limit, recurring: row.is_recurring }; });
+        return map;
+      }
+
+      async function upsertBudgetSettings(rows) {
+        const { error } = await db.from('budgets').upsert(rows, { onConflict: 'user_id,category' });
+        if (error) throw error;
+        return true;
+      }
+
+      async function getRecurringCommitments() {
+        const { data: budgetRows, error } = await db.from('budgets').select('category, budget_limit').eq('is_recurring', true);
+        if (error || !budgetRows || budgetRows.length === 0) return [];
+        const now = new Date();
+        const { start, end } = monthRange(now.getMonth(), now.getFullYear());
+        const results = [];
+        for (const b of budgetRows) {
+          const { data: rows } = await db.from('transactions').select('amount')
+            .eq('category', b.category).eq('type', 'مصروف').gte('date', start).lt('date', end);
+          const spent = (rows || []).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+          results.push({ category: b.category, spent, limit: parseFloat(b.budget_limit) || 0 });
+        }
+        return results;
+      }
+
+      async function getMonthlyCommitmentTotal() {
+        const cc = await getCCReport();
+        const recurring = await getRecurringCommitments();
+        const recurringTotal = recurring.reduce((s, r) => s + r.spent, 0);
+        return { total: cc.totalMonthlyDue + recurringTotal, cc, recurring };
+      }
+
+      async function getAccountLedger(account) {
+        const methodValue = account === 'bank' ? 'بنك' : 'كاش';
+        const { data, error } = await db.from('transactions').select('*')
+          .or('method.eq.' + methodValue + ',type.eq.سحب كاش')
+          .order('date', { ascending: false })
+          .limit(150);
+        if (error) { console.error(error); return []; }
+        return data.map(row => ({
+          id: row.id,
+          date: row.date,
+          displayDate: new Date(row.date).toLocaleDateString('ar-EG'),
+          type: row.type, category: row.category, amount: parseFloat(row.amount) || 0,
+          notes: row.notes, method: row.method
+        }));
+      }
+
+      function ledgerEffect(item, account) {
+        if (item.type === 'سحب كاش') return account === 'bank' ? -1 : 1;
+        if (item.type === 'دخل') return 1;
+        return -1;
       }
 
       async function searchGlobal(keyword) {
@@ -614,11 +847,10 @@
           const amount = parseFloat(row.amount) || 0;
           if (row.type === 'مصروف') totalExpense += amount;
           if (row.type === 'دخل') totalIncome += amount;
-          const d = new Date(row.date);
           return {
             id: row.id,
-            date: d.toLocaleDateString('en-CA'),
-            displayDate: d.toLocaleDateString('ar-EG'),
+            date: row.date,
+            displayDate: new Date(row.date).toLocaleDateString('ar-EG'),
             type: row.type,
             category: row.category,
             amount,
@@ -666,8 +898,8 @@
               datasets: [{
                 data: data.data,
                 backgroundColor: [
-                  '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-                  '#FF9F40', '#E7E9ED', '#71B37C', '#EC932F', '#525174'
+                  '#0F5C56', '#1B8A5A', '#B8862F', '#2FA98F', '#B23B3B',
+                  '#62766F', '#4FCB93', '#E0A63E', '#16302C', '#DCE6E1'
                 ],
                 hoverOffset: 4
               }]
@@ -707,8 +939,20 @@
 
       function refreshAll() {
         getBalances().then(updateBalances);
-        getCCReport().then(updateInstallments);
+        getMonthlyCommitmentTotal().then(function(res) {
+          document.getElementById('monthlyCommitment').textContent = Number(res.total).toLocaleString();
+          document.getElementById('totalDebtDisplay').textContent = Number(res.cc.totalDebt).toLocaleString();
+          renderInstallmentsList(res.cc.plans);
+        });
       }
+
+      function afterTransactionChange() {
+        refreshAll();
+        if (reportLoaded) loadMonthReport();
+        if (currentLedgerAccount) loadLedger(currentLedgerAccount);
+        if (commitmentModalOpenFlag) loadCommitmentModal();
+      }
+
       function toggleFields() {
         const type = document.querySelector('input[name="type"]:checked').value;
         document.getElementById('categoryGroup').style.display = (type === 'مصروف') ? 'block' : 'none';
@@ -725,12 +969,12 @@
           amount: form.amount.value,
           method: form.method.value,
           notes: form.notes.value
-        }).then(function(balances) {
-          updateBalances(balances);
+        }).then(function() {
           form.reset(); document.getElementById('dateInput').valueAsDate = new Date();
           btn.className = "btn btn-success w-100 fw-bold"; btn.innerText = "تم الحفظ ✅";
           document.getElementById('budgetContainer').classList.add('d-none');
           setTimeout(() => { btn.className = "btn btn-primary w-100 fw-bold"; btn.innerText = originalText; btn.disabled = false; }, 2000);
+          afterTransactionChange();
         }).catch(function(err) {
           console.error(err);
           btn.disabled = false; btn.innerText = originalText;
@@ -749,7 +993,7 @@
           form.reset(); document.getElementById('monthlyDisplay').innerText = "0.00";
           btn.className = "btn btn-success w-100 fw-bold"; btn.innerText = "تم الحفظ ✅";
           setTimeout(() => { btn.className = "btn btn-danger w-100 fw-bold"; btn.innerText = originalText; btn.disabled = false; }, 2000);
-          refreshAll();
+          afterTransactionChange();
         }).catch(function(err) {
           console.error(err);
           btn.disabled = false; btn.innerText = originalText;
@@ -763,6 +1007,7 @@
       }
 
       function loadMonthReport() {
+        reportLoaded = true;
         var m = document.getElementById('reportMonth').value;
         var y = document.getElementById('reportYear').value;
         var tbody = document.getElementById('reportTableBody');
@@ -780,7 +1025,7 @@
       }
       function deleteItem(id) {
         if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
-          deleteTransaction(id).then(function() { loadMonthReport(); refreshAll(); }).catch(function(err) {
+          deleteTransaction(id).then(function() { afterTransactionChange(); }).catch(function(err) {
             console.error(err); alert("حدث خطأ أثناء الحذف");
           });
         }
@@ -801,7 +1046,7 @@
           editId: form.editId.value, editDate: form.editDate.value,
           editType: form.editType.value, editCategory: form.editCategory.value,
           editAmount: form.editAmount.value, editNotes: form.editNotes.value, editMethod: form.editMethod.value
-        }).then(function() { editModal.hide(); loadMonthReport(); refreshAll(); }).catch(function(err) {
+        }).then(function() { editModal.hide(); afterTransactionChange(); }).catch(function(err) {
           console.error(err); alert("حدث خطأ أثناء التعديل");
         });
       }
@@ -852,15 +1097,121 @@
         });
       }
 
+      function openSettingsModal() {
+        settingsModal.show();
+        document.getElementById('settingsLoading').classList.remove('d-none');
+        document.getElementById('settingsList').innerHTML = '';
+        getAllBudgets().then(function(map) {
+          document.getElementById('settingsLoading').classList.add('d-none');
+          var html = '';
+          CATEGORY_LIST.forEach(function(cat) {
+            var existing = map[cat.value] || { limit: '', recurring: false };
+            html += `<div class="settings-row mb-3 pb-2 border-bottom">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold small">${cat.label}</span>
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input recurring-toggle" type="checkbox" data-category="${cat.value}" ${existing.recurring ? 'checked' : ''}>
+                </div>
+              </div>
+              <input type="number" class="form-control form-control-sm budget-input" data-category="${cat.value}" placeholder="حد الميزانية الشهرية (اختياري)" value="${existing.limit || ''}">
+            </div>`;
+          });
+          document.getElementById('settingsList').innerHTML = html;
+        });
+      }
+
+      function saveAllSettings() {
+        var rows = [];
+        document.querySelectorAll('#settingsList .settings-row').forEach(function(row) {
+          var toggle = row.querySelector('.recurring-toggle');
+          var input = row.querySelector('.budget-input');
+          var cat = toggle.getAttribute('data-category');
+          var limitVal = input.value ? parseFloat(input.value) : 0;
+          if (limitVal > 0 || toggle.checked) {
+            rows.push({ category: cat, budget_limit: limitVal, is_recurring: toggle.checked });
+          }
+        });
+        var btn = document.querySelector('#settingsModal .modal-footer button');
+        var originalText = "حفظ التعديلات";
+        if (rows.length === 0) { settingsModal.hide(); return; }
+        btn.disabled = true; btn.innerText = "جاري الحفظ...";
+        upsertBudgetSettings(rows).then(function() {
+          btn.disabled = false; btn.innerText = originalText;
+          settingsModal.hide();
+          afterTransactionChange();
+        }).catch(function(err) {
+          console.error(err);
+          btn.disabled = false; btn.innerText = originalText;
+          alert("حدث خطأ أثناء الحفظ");
+        });
+      }
+
+      function openLedger(account) {
+        currentLedgerAccount = account;
+        document.getElementById('ledgerModalTitle').innerText = account === 'bank' ? 'سجل البنك' : 'سجل الكاش';
+        ledgerModal.show();
+        loadLedger(account);
+      }
+
+      function loadLedger(account) {
+        document.getElementById('ledgerLoading').classList.remove('d-none');
+        document.getElementById('ledgerEmpty').classList.add('d-none');
+        document.getElementById('ledgerTableBody').innerHTML = '';
+        getAccountLedger(account).then(function(items) {
+          document.getElementById('ledgerLoading').classList.add('d-none');
+          if (items.length === 0) { document.getElementById('ledgerEmpty').classList.remove('d-none'); return; }
+          var html = '';
+          items.forEach(function(item) {
+            var effect = ledgerEffect(item, account);
+            var sign = effect > 0 ? '+' : '-';
+            var colorClass = effect > 0 ? 'text-success' : 'text-danger';
+            var label = item.category || item.type;
+            html += `<tr><td><small class="text-muted">${item.displayDate}</small></td><td><div class="fw-bold">${label}</div><small class="text-muted" style="font-size:0.75em">${item.notes || ''}</small></td><td class="fw-bold ${colorClass}">${sign}${item.amount.toLocaleString()}</td><td><button class="btn btn-sm btn-link text-primary p-0 me-2" onclick='openEditModal(${JSON.stringify(item)})'><i class="bi bi-pencil-square"></i></button><button class="btn btn-sm btn-link text-danger p-0" onclick="deleteItem(${item.id})"><i class="bi bi-trash"></i></button></td></tr>`;
+          });
+          document.getElementById('ledgerTableBody').innerHTML = html;
+        });
+      }
+
+      function openCommitmentModal() {
+        commitmentModalOpenFlag = true;
+        commitmentModal.show();
+        loadCommitmentModal();
+      }
+
+      function loadCommitmentModal() {
+        document.getElementById('commitmentInstallments').innerHTML = '<div class="text-center text-muted small">جاري التحميل...</div>';
+        document.getElementById('commitmentRecurring').innerHTML = '';
+        getMonthlyCommitmentTotal().then(function(res) {
+          if (res.cc.plans.length === 0) {
+            document.getElementById('commitmentInstallments').innerHTML = '<div class="text-center text-muted small">لا توجد أقساط حالية</div>';
+          } else {
+            var html = '';
+            res.cc.plans.forEach(function(plan) {
+              html += `<div class="installment-item"><div class="d-flex justify-content-between align-items-center"><div><div class="fw-bold small">${plan.name}</div><small class="text-muted">القادم: ${plan.nextDate}</small></div><div class="text-end"><div class="fw-bold" style="color:var(--primary)">${plan.monthly}</div><span class="badge bg-secondary" style="font-size:0.65em">باقي ${plan.remaining}</span></div></div></div>`;
+            });
+            document.getElementById('commitmentInstallments').innerHTML = html;
+          }
+          if (res.recurring.length === 0) {
+            document.getElementById('commitmentRecurring').innerHTML = '<div class="text-center text-muted small">لا توجد التزامات ثابتة مفعّلة. أضفها من ⚙️ الإعدادات</div>';
+          } else {
+            var html2 = '';
+            res.recurring.forEach(function(r) {
+              var found = CATEGORY_LIST.find(function(c) { return c.value === r.category; });
+              var catLabel = found ? found.label : r.category;
+              html2 += `<div class="installment-item"><div class="d-flex justify-content-between align-items-center"><div class="fw-bold small">${catLabel}</div><div class="fw-bold">${r.spent.toLocaleString()}${r.limit ? ' / ' + r.limit.toLocaleString() : ''}</div></div></div>`;
+            });
+            document.getElementById('commitmentRecurring').innerHTML = html2;
+          }
+        });
+      }
+
       function updateBalances(b) { document.getElementById("displayBank").textContent = Number(b.bank).toLocaleString(); document.getElementById("displayCash").textContent = Number(b.cash).toLocaleString(); }
-      function updateInstallments(report) {
-        document.getElementById("monthlyCommitment").textContent = Number(report.totalMonthlyDue).toLocaleString();
-        document.getElementById("totalDebtDisplay").textContent = Number(report.totalDebt).toLocaleString();
+      function renderInstallmentsList(plans) {
         const listContainer = document.getElementById("installmentsList");
         listContainer.innerHTML = "";
-        if (report.plans.length === 0) { listContainer.innerHTML = '<div class="text-center text-muted small">لا توجد أقساط حالية.</div>'; return; }
-        report.plans.forEach(plan => {
-          listContainer.innerHTML += `<div class="installment-item position-relative"><div class="d-flex justify-content-between align-items-center"><div><h6 class="mb-0 fw-bold">${plan.name}</h6><small class="text-muted">ميعاد القادم: <span class="text-danger fw-bold">${plan.nextDate}</span></small></div><div class="text-end"><div class="fw-bold text-primary">${plan.monthly} ج.م</div><span class="badge bg-secondary" style="font-size:0.7em">باقي ${plan.remaining} قسط</span></div></div></div>`;
+        if (plans.length === 0) { listContainer.innerHTML = '<div class="text-center text-muted small">لا توجد أقساط حالية.</div>'; return; }
+        plans.forEach(plan => {
+          listContainer.innerHTML += `<div class="installment-item position-relative"><div class="d-flex justify-content-between align-items-center"><div><h6 class="mb-0 fw-bold">${plan.name}</h6><small class="text-muted">ميعاد القادم: <span class="fw-bold" style="color:var(--danger)">${plan.nextDate}</span></small></div><div class="text-end"><div class="fw-bold" style="color:var(--primary)">${plan.monthly} ج.م</div><span class="badge bg-secondary" style="font-size:0.7em">باقي ${plan.remaining} قسط</span></div></div></div>`;
         });
       }
 
