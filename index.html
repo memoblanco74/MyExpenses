@@ -164,6 +164,11 @@
 
     <div class="container py-2">
 
+      <div id="reminderBanner" class="alert d-none mb-2 py-2 px-3 d-flex justify-content-between align-items-center" style="background: var(--amber); color:#fff; border-radius: var(--radius-md); border:none;">
+        <span id="reminderText" class="small fw-bold"></span>
+        <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('reminderBanner').classList.add('d-none')"></button>
+      </div>
+
       <div class="row g-2 mb-3">
         <div class="col-4">
           <div class="card balance-card bg-bank p-2" role="button" tabindex="0" onclick="openLedger('bank')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLedger('bank');}">
@@ -200,6 +205,9 @@
 
         <div class="tab-pane fade show active" id="pills-home">
           <div class="card form-card p-3 border-0">
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 mb-3" onclick="openSmsModal()">
+              <i class="bi bi-chat-square-text"></i> تعبئة سريعة من رسالة بنك
+            </button>
             <form id="expenseForm" onsubmit="handleDailySubmit(this)">
               <div class="mb-3">
                 <input type="date" class="form-control" name="date" id="dateInput" required>
@@ -358,6 +366,12 @@
                <canvas id="expenseChart"></canvas>
             </div>
             <div id="chartMsg" class="text-center text-muted mt-2 small"></div>
+
+            <hr style="border-color: var(--border); margin: 20px 0;">
+            <h6 class="small fw-bold text-muted mb-2">الاتجاه خلال آخر 6 شهور</h6>
+            <div style="position: relative; height:200px;">
+              <canvas id="trendChart"></canvas>
+            </div>
           </div>
         </div>
 
@@ -508,6 +522,32 @@
       </div>
     </div>
 
+    <div class="modal fade" id="smsModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fs-6">تعبئة سريعة من رسالة البنك</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted mb-2">الصق نص رسالة الـ SMS اللي جاتلك من البنك، وهنحاول نطلع المبلغ ونوع العملية تلقائيًا. انت تكمل التصنيف وتحفظ من الشاشة الرئيسية.</p>
+            <textarea class="form-control mb-2" id="smsText" rows="4" placeholder="مثال: تم خصم مبلغ 150.00 جنيه من حسابك بتاريخ..."></textarea>
+            <div id="smsParseResult" class="alert alert-danger small d-none mb-3"></div>
+            <button type="button" class="btn btn-primary w-100" onclick="handleParseSms()">تعبئة النموذج</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-container position-fixed top-0 start-50 translate-middle-x p-2" style="z-index: 1080;">
+      <div id="budgetToast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true" style="background: var(--danger); color: #fff;">
+        <div class="d-flex">
+          <div class="toast-body small fw-bold" id="budgetToastText"></div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>
+    </div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -552,7 +592,7 @@
       var settingsBudgetsMap = {};
       var selectedNewIcon = null;
 
-      var myModal, editModal, settingsModal, ledgerModal, commitmentModal, myChart = null;
+      var myModal, editModal, settingsModal, ledgerModal, commitmentModal, smsModal, budgetToastInstance, myChart = null;
       var currentLedgerAccount = null;
       var reportLoaded = false;
       var commitmentModalOpenFlag = false;
@@ -618,9 +658,14 @@
         settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
         ledgerModal = new bootstrap.Modal(document.getElementById('ledgerModal'));
         commitmentModal = new bootstrap.Modal(document.getElementById('commitmentModal'));
+        smsModal = new bootstrap.Modal(document.getElementById('smsModal'));
+        budgetToastInstance = new bootstrap.Toast(document.getElementById('budgetToast'), { delay: 4000 });
 
         document.getElementById('ledgerModal').addEventListener('hidden.bs.modal', function() { currentLedgerAccount = null; });
         document.getElementById('commitmentModal').addEventListener('hidden.bs.modal', function() { commitmentModalOpenFlag = false; });
+
+        var analysisTabBtn = document.querySelector('button[data-bs-target="#pills-analysis"]');
+        if (analysisTabBtn) { analysisTabBtn.addEventListener('shown.bs.tab', function() { loadTrendChart(); }); }
 
         await seedDefaultCategoriesIfEmpty();
         renderCategoryDependentUI();
@@ -853,7 +898,8 @@
             monthly: monthlyVal,
             remaining: remainingMonths,
             totalRemaining: (remainingMonths * monthlyVal).toFixed(2),
-            nextDate: nextPaymentDate.toLocaleDateString('ar-EG')
+            nextDate: nextPaymentDate.toLocaleDateString('ar-EG'),
+            nextPaymentDateObj: nextPaymentDate
           });
         });
 
@@ -955,6 +1001,51 @@
         });
       }
 
+      async function getTrendData() {
+        const now = new Date();
+        const months = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          months.push({ month: d.getMonth(), year: d.getFullYear(), label: d.toLocaleDateString('ar-EG', { month: 'short', year: '2-digit' }) });
+        }
+        const results = [];
+        for (const m of months) {
+          const { start, end } = monthRange(m.month, m.year);
+          const { data } = await db.from('transactions').select('type, amount').gte('date', start).lt('date', end);
+          let exp = 0, inc = 0;
+          (data || []).forEach(function(r) {
+            const amt = parseFloat(r.amount) || 0;
+            if (r.type === 'مصروف') exp += amt;
+            if (r.type === 'دخل') inc += amt;
+          });
+          results.push({ label: m.label, exp: exp, inc: inc });
+        }
+        return results;
+      }
+
+      var myTrendChart = null;
+      function loadTrendChart() {
+        getTrendData().then(function(data) {
+          var ctx = document.getElementById('trendChart').getContext('2d');
+          if (myTrendChart) { myTrendChart.destroy(); }
+          myTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: data.map(function(d) { return d.label; }),
+              datasets: [
+                { label: 'مصروفات', data: data.map(function(d) { return d.exp; }), borderColor: '#B23B3B', backgroundColor: 'rgba(178,59,59,0.12)', tension: 0.3, fill: true },
+                { label: 'دخل', data: data.map(function(d) { return d.inc; }), borderColor: '#1B8A5A', backgroundColor: 'rgba(27,138,90,0.12)', tension: 0.3, fill: true }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } }
+            }
+          });
+        });
+      }
+
       function checkBudget() {
         var cat = document.getElementById('catInput').value;
         var container = document.getElementById('budgetContainer');
@@ -977,12 +1068,35 @@
         });
       }
 
+      function checkInstallmentReminders(plans) {
+        var now = new Date();
+        now.setHours(0, 0, 0, 0);
+        var upcoming = plans.filter(function(p) {
+          if (!p.nextPaymentDateObj) return false;
+          var due = new Date(p.nextPaymentDateObj);
+          due.setHours(0, 0, 0, 0);
+          var diffDays = Math.round((due - now) / (1000 * 60 * 60 * 24));
+          return diffDays >= 0 && diffDays <= 2;
+        });
+        var banner = document.getElementById('reminderBanner');
+        if (upcoming.length === 0) { banner.classList.add('d-none'); return; }
+        var names = upcoming.map(function(p) { return p.name; }).join('، ');
+        document.getElementById('reminderText').innerText = '⏰ قسط ' + names + ' مستحق قريب — راجع شاشة الالتزام الشهري';
+        banner.classList.remove('d-none');
+      }
+
+      function showBudgetToast(text) {
+        document.getElementById('budgetToastText').innerText = text;
+        if (budgetToastInstance) { budgetToastInstance.show(); }
+      }
+
       function refreshAll() {
         getBalances().then(updateBalances);
         getMonthlyCommitmentTotal().then(function(res) {
           document.getElementById('monthlyCommitment').textContent = Number(res.total).toLocaleString();
           document.getElementById('totalDebtDisplay').textContent = Number(res.cc.totalDebt).toLocaleString();
           renderInstallmentsList(res.cc.plans);
+          checkInstallmentReminders(res.cc.plans);
         });
       }
 
@@ -997,15 +1111,64 @@
         const type = document.querySelector('input[name="type"]:checked').value;
         document.getElementById('categoryGroup').style.display = (type === 'مصروف') ? 'block' : 'none';
       }
+
+      function parseBankSms(text) {
+        var result = { amount: null, type: 'مصروف', note: '' };
+        var amountMatch = text.match(/\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?/);
+        if (amountMatch) {
+          var raw = amountMatch[0].replace(/,/g, '');
+          result.amount = parseFloat(raw);
+        }
+        if (/إيداع|ايداع|تحويل وارد|رصيدك زاد|credit|deposit/i.test(text)) {
+          result.type = 'دخل';
+        } else if (/سحب كاش|ATM|صراف/i.test(text)) {
+          result.type = 'سحب كاش';
+        } else {
+          result.type = 'مصروف';
+        }
+        var merchantMatch = text.match(/(?:لدى|at|in)\s+([^\n,،.]{2,30})/i);
+        if (merchantMatch) { result.note = merchantMatch[1].trim(); }
+        return result;
+      }
+
+      function openSmsModal() {
+        document.getElementById('smsText').value = '';
+        document.getElementById('smsParseResult').classList.add('d-none');
+        smsModal.show();
+      }
+
+      function handleParseSms() {
+        var text = document.getElementById('smsText').value.trim();
+        if (!text) { alert('الصق نص الرسالة الأول'); return; }
+        var parsed = parseBankSms(text);
+        var resultBox = document.getElementById('smsParseResult');
+        if (!parsed.amount) {
+          resultBox.innerText = 'معرفتش أطلع المبلغ من الرسالة، اكتبه يدوي بعد ما نعبي الباقي.';
+          resultBox.classList.remove('d-none');
+        } else {
+          resultBox.classList.add('d-none');
+        }
+        var radios = { 'مصروف': 't-exp', 'سحب كاش': 't-with', 'دخل': 't-inc' };
+        document.getElementById(radios[parsed.type]).checked = true;
+        toggleFields();
+        document.querySelector('#expenseForm input[name="amount"]').value = parsed.amount || '';
+        document.querySelector('#expenseForm select[name="method"]').value = 'بنك';
+        document.querySelector('#expenseForm input[name="notes"]').value = parsed.note;
+        smsModal.hide();
+        document.querySelector('#expenseForm input[name="amount"]').focus();
+      }
+
       function handleDailySubmit(form) {
         event.preventDefault();
         const btn = form.querySelector('button[type="submit"]');
         const originalText = "حفظ";
+        const txType = form.querySelector('input[name="type"]:checked').value;
+        const txCategory = form.category ? form.category.value : '';
         btn.disabled = true; btn.innerText = "جاري الحفظ...";
         addNewTransaction({
           date: form.date.value,
-          type: form.querySelector('input[name="type"]:checked').value,
-          category: form.category ? form.category.value : '',
+          type: txType,
+          category: txCategory,
           amount: form.amount.value,
           method: form.method.value,
           notes: form.notes.value
@@ -1015,6 +1178,13 @@
           document.getElementById('budgetContainer').classList.add('d-none');
           setTimeout(() => { btn.className = "btn btn-primary w-100 fw-bold"; btn.innerText = originalText; btn.disabled = false; }, 2000);
           afterTransactionChange();
+          if (txType === 'مصروف' && txCategory) {
+            getCategoryBudget(txCategory).then(function(res) {
+              if (res.limit > 0 && res.current >= res.limit) {
+                showBudgetToast('⚠️ تخطيت ميزانية "' + txCategory + '"! المصروف الشهر ده ' + res.current.toLocaleString() + ' من أصل ' + res.limit.toLocaleString());
+              }
+            });
+          }
         }).catch(function(err) {
           console.error(err);
           btn.disabled = false; btn.innerText = originalText;
@@ -1082,11 +1252,22 @@
       }
       function handleEditSubmit(form) {
         event.preventDefault();
+        const txType = form.editType.value;
+        const txCategory = form.editCategory.value;
         editTransaction({
           editId: form.editId.value, editDate: form.editDate.value,
           editType: form.editType.value, editCategory: form.editCategory.value,
           editAmount: form.editAmount.value, editNotes: form.editNotes.value, editMethod: form.editMethod.value
-        }).then(function() { editModal.hide(); afterTransactionChange(); }).catch(function(err) {
+        }).then(function() {
+          editModal.hide(); afterTransactionChange();
+          if (txType === 'مصروف' && txCategory) {
+            getCategoryBudget(txCategory).then(function(res) {
+              if (res.limit > 0 && res.current >= res.limit) {
+                showBudgetToast('⚠️ تخطيت ميزانية "' + txCategory + '"! المصروف الشهر ده ' + res.current.toLocaleString() + ' من أصل ' + res.limit.toLocaleString());
+              }
+            });
+          }
+        }).catch(function(err) {
           console.error(err); alert("حدث خطأ أثناء التعديل");
         });
       }
