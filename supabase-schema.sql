@@ -34,6 +34,7 @@ create table budgets (
   user_id uuid not null default auth.uid() references auth.users(id),
   category text not null,
   budget_limit numeric not null,
+  is_recurring boolean not null default false,
   unique (user_id, category)
 );
 
@@ -57,3 +58,9 @@ create policy "owner_all_budgets" on budgets
 create index idx_transactions_date on transactions(date);
 create index idx_transactions_category on transactions(category);
 create index idx_cc_plans_status on cc_plans(status);
+
+-- ==========================================
+-- Migration for existing databases (run once if you already created
+-- the budgets table before the is_recurring feature was added):
+-- alter table budgets add column if not exists is_recurring boolean not null default false;
+-- ==========================================
