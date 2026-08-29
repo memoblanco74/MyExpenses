@@ -5,8 +5,8 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f0f2f5",
-  "theme_color": "#1e3c72",
+  "background_color": "#EDF2F0",
+  "theme_color": "#0F5C56",
   "orientation": "portrait-primary",
   "lang": "ar",
   "dir": "rtl",
@@ -22,6 +22,17 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "إضافة عملية جديدة",
+      "short_name": "إضافة سريعة",
+      "description": "افتح فورم تسجيل مصروف أو دخل جديد مباشرة",
+      "url": "./index.html?action=quickadd",
+      "icons": [
+        { "src": "icons/icon-192.png", "sizes": "192x192" }
+      ]
     }
   ]
 }
