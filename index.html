@@ -125,6 +125,11 @@
 
       #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
       #loginCard { max-width: 380px; width: 100%; background: var(--surface) !important; border-radius: var(--radius-lg); box-shadow: var(--shadow); color: var(--ink); }
+
+      .pin-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--border); display: inline-block; }
+      .pin-dot.filled { background: var(--primary); }
+      .pin-pad-btn { width: 64px; height: 64px; border-radius: 50% !important; font-size: 1.3rem; font-weight: 700; border: 1px solid var(--border) !important; background: var(--surface-2); color: var(--ink); box-shadow: none; }
+      .pin-pad-btn:active { transform: scale(.93); }
     </style>
   </head>
   <body>
@@ -142,6 +147,31 @@
           <div id="loginError" class="alert alert-danger py-2 small d-none"></div>
           <button type="submit" class="btn btn-primary w-100 fw-bold">دخول</button>
         </form>
+      </div>
+    </div>
+
+    <div id="lockScreen" class="container d-none" style="min-height:100vh; display:flex; align-items:center; justify-content:center;">
+      <div class="card form-card p-4 border-0 text-center" style="max-width:340px; width:100%;">
+        <i class="bi bi-lock-fill mb-2" style="font-size:2rem; color:var(--primary);"></i>
+        <h6 class="fw-bold mb-3">اكتب رمز الدخول</h6>
+        <div id="pinDots" class="d-flex justify-content-center gap-2 mb-3">
+          <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
+        </div>
+        <div id="lockError" class="small mb-2 d-none" style="color: var(--danger);">رمز غلط، حاول تاني</div>
+        <div class="d-flex flex-wrap justify-content-center gap-2" style="max-width:220px; margin:0 auto;">
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('1')">1</button>
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('2')">2</button>
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('3')">3</button>
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('4')">4</button>
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('5')">5</button>
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('6')">6</button>
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('7')">7</button>
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('8')">8</button>
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('9')">9</button>
+          <span style="width:64px;"></span>
+          <button type="button" class="pin-pad-btn" onclick="pinDigit('0')">0</button>
+          <button type="button" class="pin-pad-btn" onclick="pinBackspace()"><i class="bi bi-backspace"></i></button>
+        </div>
       </div>
     </div>
 
@@ -208,6 +238,10 @@
             <button type="button" class="btn btn-sm btn-outline-secondary w-100 mb-3" onclick="openSmsModal()">
               <i class="bi bi-chat-square-text"></i> تعبئة سريعة من رسالة بنك
             </button>
+            <div id="pinnedChipsWrap" class="mb-3 d-none">
+              <label class="form-label small text-muted">مفضلة</label>
+              <div id="pinnedChips" class="d-flex flex-wrap gap-2"></div>
+            </div>
             <form id="expenseForm" onsubmit="handleDailySubmit(this)">
               <div class="mb-3">
                 <input type="date" class="form-control" name="date" id="dateInput" required>
@@ -248,10 +282,17 @@
                   <option value="كاش">كاش</option>
                   <option value="بنك">بنك</option>
                 </select>
+                <button type="button" class="btn btn-outline-secondary d-none" id="voiceBtn" onclick="startVoiceInput()" title="إدخال بالصوت">
+                  <i class="bi bi-mic-fill"></i>
+                </button>
               </div>
 
               <input type="text" class="form-control mb-3" name="notes" placeholder="ملاحظات..">
               <button type="submit" class="btn btn-primary w-100 fw-bold">حفظ</button>
+              <div id="undoBanner" class="alert d-none mt-2 py-2 px-3 d-flex justify-content-between align-items-center mb-0" style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);">
+                <span class="small">تم الحفظ</span>
+                <button type="button" class="btn btn-sm btn-link p-0 fw-bold" style="color: var(--danger);" onclick="handleUndoLastTransaction()">تراجع</button>
+              </div>
             </form>
           </div>
         </div>
@@ -343,6 +384,9 @@
 
         <div class="tab-pane fade" id="pills-analysis">
           <div class="card form-card p-3 border-0">
+            <h6 class="small fw-bold text-muted mb-2">توقعات ومقارنة الشهر</h6>
+            <div id="insightsBox" class="text-center text-muted small py-2">جاري التحميل...</div>
+            <hr style="border-color: var(--border); margin: 16px 0;">
             <div class="row g-2 mb-3">
               <div class="col-6">
                 <select id="chartMonth" class="form-select form-select-sm">
@@ -477,6 +521,10 @@
             <p class="small text-muted mb-3">حدد حد الميزانية الشهري لأي تصنيف (اختياري)، وفعّل مفتاح "التزام شهري" للتصنيفات الثابتة زي الفواتير عشان تظهر في شاشة الالتزام الشهري. زرار السلة بيمسح التصنيف من القائمة.</p>
             <div id="settingsLoading" class="text-center text-muted small py-3">جاري التحميل...</div>
             <div id="settingsList"></div>
+            <hr style="border-color: var(--border); margin: 20px 0;">
+            <h6 class="small fw-bold mb-2">قفل الدخول بالرمز</h6>
+            <p class="small text-muted mb-2">رمز من 4 أرقام يتطلب منك كل ما تفتح التطبيق على الجهاز ده — بيفضل عليه بس، ومش بديل عن كلمة مرور الحساب.</p>
+            <div id="pinManageArea"></div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-primary w-100 fw-bold" onclick="saveAllSettings()">حفظ التعديلات</button>
@@ -605,15 +653,23 @@
         });
       }
 
+      var deviceUnlocked = false;
+
       function showLogin() {
         document.getElementById("loginScreen").classList.remove("d-none");
+        document.getElementById("lockScreen").classList.add("d-none");
         document.getElementById("appScreen").classList.add("d-none");
+        deviceUnlocked = false;
       }
 
       function onLoggedIn() {
         document.getElementById("loginScreen").classList.add("d-none");
-        document.getElementById("appScreen").classList.remove("d-none");
-        initApp();
+        if (isPinSet() && !deviceUnlocked) {
+          showLockScreen();
+        } else {
+          document.getElementById("appScreen").classList.remove("d-none");
+          initApp();
+        }
       }
 
       async function handleLogin(form) {
@@ -665,12 +721,22 @@
         document.getElementById('commitmentModal').addEventListener('hidden.bs.modal', function() { commitmentModalOpenFlag = false; });
 
         var analysisTabBtn = document.querySelector('button[data-bs-target="#pills-analysis"]');
-        if (analysisTabBtn) { analysisTabBtn.addEventListener('shown.bs.tab', function() { loadTrendChart(); }); }
+        if (analysisTabBtn) { analysisTabBtn.addEventListener('shown.bs.tab', function() { loadTrendChart(); loadInsights(); }); }
+
+        initVoiceInput();
 
         await seedDefaultCategoriesIfEmpty();
         renderCategoryDependentUI();
         renderIconPicker();
+        loadPinnedChips();
         refreshAll();
+
+        if (new URLSearchParams(location.search).get('action') === 'quickadd') {
+          setTimeout(function() {
+            var amt = document.querySelector('#expenseForm input[name="amount"]');
+            if (amt) amt.focus();
+          }, 300);
+        }
       }
 
       function toggleDarkMode() {
@@ -711,16 +777,16 @@
       }
 
       async function addNewTransaction(payload) {
-        const { error } = await db.from('transactions').insert({
+        const { data, error } = await db.from('transactions').insert({
           date: payload.date,
           type: payload.type,
           category: payload.category,
           amount: parseFloat(payload.amount),
           notes: payload.notes,
           method: payload.method
-        });
+        }).select('id').single();
         if (error) throw error;
-        return true;
+        return data.id;
       }
 
       async function deleteTransaction(id) {
@@ -907,9 +973,21 @@
       }
 
       async function getSavedPresets(category) {
-        const { data, error } = await db.from('fixed_expenses').select('name, amount').eq('category', category);
+        const { data, error } = await db.from('fixed_expenses').select('id, name, amount, is_pinned').eq('category', category);
         if (error) { console.error(error); return []; }
         return data;
+      }
+
+      async function getPinnedPresets() {
+        const { data, error } = await db.from('fixed_expenses').select('id, category, name, amount').eq('is_pinned', true).order('id', { ascending: true });
+        if (error) { console.error(error); return []; }
+        return data || [];
+      }
+
+      async function setPresetPinned(id, pinned) {
+        const { error } = await db.from('fixed_expenses').update({ is_pinned: pinned }).eq('id', id);
+        if (error) throw error;
+        return true;
       }
 
       async function saveNewPreset(payload) {
@@ -1046,6 +1124,79 @@
         });
       }
 
+      async function getMonthlyInsights() {
+        const now = new Date();
+        const dayOfMonth = now.getDate();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const curRange = monthRange(now.getMonth(), now.getFullYear());
+        const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const prevRange = monthRange(prevDate.getMonth(), prevDate.getFullYear());
+
+        const curRes = await db.from('transactions').select('type, category, amount').gte('date', curRange.start).lt('date', curRange.end);
+        const prevRes = await db.from('transactions').select('type, category, amount').gte('date', prevRange.start).lt('date', prevRange.end);
+
+        function sumByCategory(rows) {
+          const totals = {}; let totalExp = 0;
+          (rows || []).forEach(function(r) {
+            if (r.type !== 'مصروف') return;
+            const amt = parseFloat(r.amount) || 0;
+            totals[r.category] = (totals[r.category] || 0) + amt;
+            totalExp += amt;
+          });
+          return { totals: totals, totalExp: totalExp };
+        }
+        const cur = sumByCategory(curRes.data);
+        const prev = sumByCategory(prevRes.data);
+
+        const avgDaily = dayOfMonth > 0 ? cur.totalExp / dayOfMonth : 0;
+        const forecast = avgDaily * daysInMonth;
+
+        const changes = [];
+        Object.keys(cur.totals).forEach(function(cat) {
+          const curAmt = cur.totals[cat];
+          const prevAmt = prev.totals[cat] || 0;
+          if (prevAmt > 0) {
+            const pct = ((curAmt - prevAmt) / prevAmt) * 100;
+            changes.push({ category: cat, pct: pct, curAmt: curAmt, prevAmt: prevAmt });
+          }
+        });
+        changes.sort(function(a, b) { return Math.abs(b.pct) - Math.abs(a.pct); });
+
+        return {
+          totalExp: cur.totalExp, prevTotalExp: prev.totalExp,
+          avgDaily: avgDaily, forecast: forecast, changes: changes
+        };
+      }
+
+      function loadInsights() {
+        document.getElementById('insightsBox').innerHTML = '<div class="text-muted small">جاري التحميل...</div>';
+        getMonthlyInsights().then(function(res) {
+          var diffHtml = '';
+          if (res.prevTotalExp > 0) {
+            var diffPct = ((res.totalExp - res.prevTotalExp) / res.prevTotalExp) * 100;
+            var diffColor = diffPct > 0 ? 'var(--danger)' : 'var(--success)';
+            var diffSign = diffPct > 0 ? '+' : '';
+            diffHtml = '<div class="mb-2">صرفت الشهر ده <strong style="color:' + diffColor + '">' + diffSign + diffPct.toFixed(0) + '%</strong> عن الشهر اللي فات</div>';
+          }
+          var topChanges = res.changes.slice(0, 3);
+          var changesHtml = '';
+          topChanges.forEach(function(c) {
+            var found = CATEGORIES.find(function(x) { return x.name === c.category; });
+            var label = found ? (found.icon + ' ' + found.name) : c.category;
+            var color = c.pct > 0 ? 'var(--danger)' : 'var(--success)';
+            var sign = c.pct > 0 ? '+' : '';
+            changesHtml += '<div class="d-flex justify-content-between small mb-1"><span>' + label + '</span><span style="color:' + color + '" class="fw-bold">' + sign + c.pct.toFixed(0) + '%</span></div>';
+          });
+          document.getElementById('insightsBox').innerHTML =
+            '<div class="text-start">' +
+            diffHtml +
+            '<div class="mb-2">متوسط صرفك اليومي: <strong>' + res.avgDaily.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' ج.م</strong></div>' +
+            '<div class="mb-2">لو استمريت بنفس المعدل هتخلص الشهر بمصروفات حوالي <strong style="color:var(--amber)">' + res.forecast.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' ج.م</strong></div>' +
+            (changesHtml ? '<div class="mt-2 pt-2 border-top" style="border-color:var(--border) !important;"><div class="small text-muted mb-1">أكبر تغييرات عن الشهر اللي فات:</div>' + changesHtml + '</div>' : '') +
+            '</div>';
+        });
+      }
+
       function checkBudget() {
         var cat = document.getElementById('catInput').value;
         var container = document.getElementById('budgetContainer');
@@ -1119,7 +1270,7 @@
           var raw = amountMatch[0].replace(/,/g, '');
           result.amount = parseFloat(raw);
         }
-        if (/إيداع|ايداع|تحويل وارد|رصيدك زاد|credit|deposit/i.test(text)) {
+        if (/إيداع|ايداع|تحويل وارد|رصيدك زاد|استلمت|قبضت|credit|deposit/i.test(text)) {
           result.type = 'دخل';
         } else if (/سحب كاش|ATM|صراف/i.test(text)) {
           result.type = 'سحب كاش';
@@ -1158,6 +1309,72 @@
         document.querySelector('#expenseForm input[name="amount"]').focus();
       }
 
+      var voiceRecognition = null;
+      function initVoiceInput() {
+        var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) return;
+        voiceRecognition = new SpeechRecognition();
+        voiceRecognition.lang = 'ar-EG';
+        voiceRecognition.interimResults = false;
+        voiceRecognition.maxAlternatives = 1;
+        document.getElementById('voiceBtn').classList.remove('d-none');
+      }
+
+      function startVoiceInput() {
+        if (!voiceRecognition) return;
+        var btn = document.getElementById('voiceBtn');
+        btn.classList.add('btn-danger'); btn.classList.remove('btn-outline-secondary');
+        try { voiceRecognition.start(); } catch (e) { /* already started */ }
+        voiceRecognition.onresult = function(event) {
+          var transcript = event.results[0][0].transcript;
+          applyVoiceTranscript(transcript);
+        };
+        voiceRecognition.onerror = function() {
+          btn.classList.remove('btn-danger'); btn.classList.add('btn-outline-secondary');
+        };
+        voiceRecognition.onend = function() {
+          btn.classList.remove('btn-danger'); btn.classList.add('btn-outline-secondary');
+        };
+      }
+
+      function applyVoiceTranscript(text) {
+        var parsed = parseBankSms(text);
+        var matchedCategory = null;
+        CATEGORIES.forEach(function(cat) {
+          if (!matchedCategory && text.indexOf(cat.name) !== -1) { matchedCategory = cat.name; }
+        });
+        var radios = { 'مصروف': 't-exp', 'سحب كاش': 't-with', 'دخل': 't-inc' };
+        document.getElementById(radios[parsed.type] || 't-exp').checked = true;
+        toggleFields();
+        if (parsed.amount) { document.querySelector('#expenseForm input[name="amount"]').value = parsed.amount; }
+        if (matchedCategory) { document.getElementById('catInput').value = matchedCategory; checkBudget(); }
+        document.querySelector('#expenseForm input[name="notes"]').value = text;
+      }
+
+      var lastInsertedTransactionId = null;
+      var undoTimeoutHandle = null;
+
+      function showUndoBanner() {
+        var banner = document.getElementById('undoBanner');
+        banner.classList.remove('d-none');
+        if (undoTimeoutHandle) clearTimeout(undoTimeoutHandle);
+        undoTimeoutHandle = setTimeout(function() {
+          banner.classList.add('d-none');
+          lastInsertedTransactionId = null;
+        }, 6000);
+      }
+
+      function handleUndoLastTransaction() {
+        if (!lastInsertedTransactionId) return;
+        var id = lastInsertedTransactionId;
+        lastInsertedTransactionId = null;
+        document.getElementById('undoBanner').classList.add('d-none');
+        if (undoTimeoutHandle) clearTimeout(undoTimeoutHandle);
+        deleteTransaction(id).then(function() { afterTransactionChange(); }).catch(function(err) {
+          console.error(err); alert('حدث خطأ أثناء التراجع');
+        });
+      }
+
       function handleDailySubmit(form) {
         event.preventDefault();
         const btn = form.querySelector('button[type="submit"]');
@@ -1172,7 +1389,9 @@
           amount: form.amount.value,
           method: form.method.value,
           notes: form.notes.value
-        }).then(function() {
+        }).then(function(insertedId) {
+          lastInsertedTransactionId = insertedId;
+          showUndoBanner();
           form.reset(); document.getElementById('dateInput').valueAsDate = new Date();
           btn.className = "btn btn-success w-100 fw-bold"; btn.innerText = "تم الحفظ ✅";
           document.getElementById('budgetContainer').classList.add('d-none');
@@ -1301,9 +1520,47 @@
           document.getElementById('loadingPresets').style.display = 'none';
           if (items.length === 0) { document.getElementById('emptyPresetsMsg').classList.remove('d-none'); return; }
           var html = '';
-          items.forEach(function(item) { html += `<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" onclick="usePreset('${item.name}', '${item.amount}')"><span>${item.name}</span><span class="badge bg-primary rounded-pill">${item.amount}</span></button>`; });
+          items.forEach(function(item) {
+            var starIcon = item.is_pinned ? 'bi-star-fill' : 'bi-star';
+            html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+              <button type="button" class="btn btn-link p-0 text-decoration-none flex-grow-1 text-start" style="color: var(--ink);" onclick="usePreset('${item.name.replace(/'/g, "\\'")}', '${item.amount}')">${item.name}</button>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary rounded-pill">${item.amount}</span>
+                <button type="button" class="btn btn-sm btn-link p-0" onclick="togglePin(${item.id}, ${item.is_pinned ? 'false' : 'true'}, '${category}')" title="تثبيت في الصفحة الرئيسية"><i class="bi ${starIcon}" style="color: var(--amber);"></i></button>
+              </div>
+            </div>`;
+          });
           document.getElementById('presetsList').innerHTML = html;
         });
+      }
+      function togglePin(id, newState, category) {
+        setPresetPinned(id, newState).then(function() {
+          loadPresets(category);
+          loadPinnedChips();
+        }).catch(function(err) { console.error(err); alert("حدث خطأ"); });
+      }
+      function loadPinnedChips() {
+        getPinnedPresets().then(function(items) {
+          var wrap = document.getElementById('pinnedChipsWrap');
+          if (items.length === 0) { wrap.classList.add('d-none'); return; }
+          var html = '';
+          items.forEach(function(item) {
+            var found = CATEGORIES.find(function(c) { return c.name === item.category; });
+            var icon = found ? found.icon : '⭐';
+            html += `<button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" onclick="useQuickPin('${item.category.replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}', ${item.amount})">${icon} ${item.name}</button>`;
+          });
+          document.getElementById('pinnedChips').innerHTML = html;
+          wrap.classList.remove('d-none');
+        });
+      }
+      function useQuickPin(category, name, amount) {
+        document.getElementById('t-exp').checked = true;
+        toggleFields();
+        document.getElementById('catInput').value = category;
+        checkBudget();
+        document.querySelector('#expenseForm input[name="amount"]').value = amount;
+        document.querySelector('#expenseForm input[name="notes"]').value = name;
+        document.querySelector('#expenseForm input[name="amount"]').focus();
       }
       function usePreset(name, amount) { document.querySelector('input[name="amount"]').value = amount; document.querySelector('input[name="notes"]').value = name; myModal.hide(); }
       function handleNewPreset(form) {
@@ -1396,11 +1653,93 @@
         document.getElementById('settingsList').innerHTML = html;
       }
 
+      async function sha256Hex(str) {
+        const enc = new TextEncoder().encode(str);
+        const buf = await crypto.subtle.digest('SHA-256', enc);
+        return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+      }
+
+      function isPinSet() { return !!localStorage.getItem('appLockPinHash'); }
+
+      var pinEntry = '';
+      function updatePinDots() {
+        document.querySelectorAll('#pinDots .pin-dot').forEach(function(dot, i) {
+          dot.classList.toggle('filled', i < pinEntry.length);
+        });
+      }
+      function pinDigit(d) {
+        if (pinEntry.length >= 4) return;
+        pinEntry += d;
+        updatePinDots();
+        if (pinEntry.length === 4) { verifyPin(); }
+      }
+      function pinBackspace() {
+        pinEntry = pinEntry.slice(0, -1);
+        updatePinDots();
+      }
+      async function verifyPin() {
+        const hash = await sha256Hex(pinEntry);
+        const stored = localStorage.getItem('appLockPinHash');
+        if (hash === stored) {
+          deviceUnlocked = true;
+          document.getElementById('lockScreen').classList.add('d-none');
+          document.getElementById('appScreen').classList.remove('d-none');
+          pinEntry = '';
+          document.getElementById('lockError').classList.add('d-none');
+          initApp();
+        } else {
+          document.getElementById('lockError').classList.remove('d-none');
+          pinEntry = '';
+          updatePinDots();
+          setTimeout(function() { document.getElementById('lockError').classList.add('d-none'); }, 1500);
+        }
+      }
+      function showLockScreen() {
+        pinEntry = '';
+        updatePinDots();
+        document.getElementById('appScreen').classList.add('d-none');
+        document.getElementById('lockScreen').classList.remove('d-none');
+      }
+
+      function renderPinManageArea() {
+        var area = document.getElementById('pinManageArea');
+        if (isPinSet()) {
+          area.innerHTML = '<p class="small text-muted mb-2">القفل مفعّل على الجهاز ده.</p>' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary w-100 mb-2" onclick="renderPinSetupForm()">تغيير الرمز</button>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="handleRemovePin()">إلغاء القفل</button>';
+        } else {
+          renderPinSetupForm();
+        }
+      }
+      function renderPinSetupForm() {
+        var area = document.getElementById('pinManageArea');
+        area.innerHTML = '<input type="password" inputmode="numeric" maxlength="4" class="form-control form-control-sm mb-2" id="newPinInput" placeholder="رمز جديد (4 أرقام)">' +
+          '<input type="password" inputmode="numeric" maxlength="4" class="form-control form-control-sm mb-2" id="confirmPinInput" placeholder="تأكيد الرمز">' +
+          '<button type="button" class="btn btn-sm btn-primary w-100" onclick="handleSetupPin()">حفظ الرمز</button>';
+      }
+      async function handleSetupPin() {
+        var p1 = document.getElementById('newPinInput').value;
+        var p2 = document.getElementById('confirmPinInput').value;
+        if (!/^\d{4}$/.test(p1)) { alert('لازم يكون الرمز 4 أرقام بالظبط'); return; }
+        if (p1 !== p2) { alert('الرمزين مش متطابقين'); return; }
+        var hash = await sha256Hex(p1);
+        localStorage.setItem('appLockPinHash', hash);
+        deviceUnlocked = true;
+        renderPinManageArea();
+        alert('اتفعّل الرمز بنجاح');
+      }
+      function handleRemovePin() {
+        if (!confirm('متأكد عايز تلغي قفل الدخول من الجهاز ده؟')) return;
+        localStorage.removeItem('appLockPinHash');
+        renderPinManageArea();
+      }
+
       function openSettingsModal() {
         settingsModal.show();
         document.getElementById('settingsLoading').classList.remove('d-none');
         document.getElementById('settingsList').innerHTML = '';
         renderIconPicker();
+        renderPinManageArea();
         getAllBudgets().then(function(map) {
           settingsBudgetsMap = map;
           document.getElementById('settingsLoading').classList.add('d-none');
